@@ -1,8 +1,6 @@
-# Python Project Template Repository
+# Chess Test
 
-This is a template repository for a Python project. Feel free to use and edit
-this repository (including this file) for your needs. Below, find some
-instructions and tips for using this template repository.
+Stockfish and Python Chess implementations to test PIE software implementations
 
 ## How to Use
 
