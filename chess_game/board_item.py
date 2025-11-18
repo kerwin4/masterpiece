@@ -322,7 +322,7 @@ class BoardItem:
             for r, c in path:
                 x = c * node_spacing
                 y = r * node_spacing
-                gcode_lines.append(f"G1 X{x:.3f} Y{y:.3f} F1000")  # arduino move with lower feedrate determine empirically
+                gcode_lines.append(f"G1 X{x:.3f} Y{y:.3f} F500")  # arduino move with lower feedrate determine empirically
 
             # servo down at end of sequence again INTERPRET WITH PI
             gcode_lines.append("servo_down")

@@ -3,7 +3,7 @@ import chess.engine
 import time
 
 # CONFIGURE GAME
-STOCKFISH_PATH = "/tmp/stockfish/stockfish-android-armv8"  # stockfish path for pi: /tmp/stockfish/stockfish-android-armv8
+STOCKFISH_PATH = "stockfish-windows-x86-64-avx2.exe"  # stockfish path for pi: /tmp/stockfish/stockfish-android-armv8
 ENGINE_TIME = 0.1        # seconds for stockfish to choose
 TURN_DELAY = 0         # delay between computer turns
 WHITE_SKILL = 15          # stockfish skill white
