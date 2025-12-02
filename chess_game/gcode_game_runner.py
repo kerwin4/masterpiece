@@ -22,9 +22,10 @@ SERVO_PIN = 13                # GPIO pin connected to servo signal wire
 # ==========================================================
 
 # === Initialize pigpio servo ===
-factory = PiGPIOFactory()
-servo = Servo(SERVO_PIN, pin_factory=factory, min_pulse_width=0.0005, max_pulse_width=0.0025)
+#factory = PiGPIOFactory()
+#servo = Servo(SERVO_PIN, pin_factory=factory, min_pulse_width=0.0005, max_pulse_width=0.0025)
 
+'''
 def servo_up():
     servo.value = 0.75  # adjust based on your physical setup
     time.sleep(0.5)
@@ -36,11 +37,38 @@ def servo_down():
 def servo_neutral():
     servo.value = 0
     time.sleep(0.5)
+'''
 
 # === Initialize GRBL Serial Connection ===
 arduino = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
 time.sleep(2)  # allow GRBL to initialize
 arduino.reset_input_buffer()
+
+# === Send homing and G20 G90 on startup ===
+arduino.write(b"$H\n")
+while True:
+    resp = arduino.readline().decode("utf-8").strip()
+    if resp == "ok":
+        break
+    elif resp:
+        print(f"[GRBL INIT] {resp}")
+
+arduino.write(b"G92 X0 Y0\n")
+while True:
+    resp = arduino.readline().decode("utf-8").strip()
+    if resp == "ok":
+        break
+    elif resp:
+        print(f"[GRBL INIT] {resp}")
+
+arduino.write(b"G20 G90\n")
+while True:
+    resp = arduino.readline().decode("utf-8").strip()
+    if resp == "ok":
+        break
+    elif resp:
+        print(f"[GRBL INIT] {resp}")
+
 
 def send_gcode_line(line):
     """Send one G-code line to Arduino and wait for 'ok'."""
@@ -49,11 +77,11 @@ def send_gcode_line(line):
         return
     # Servo commands handled directly by Pi
     if line == "servo_up":
-        servo_up()
+        #servo_up()
         print("[PI] Servo up")
         return
     elif line == "servo_down":
-        servo_down()
+        #servo_down()
         print("[PI] Servo down")
         return
 
@@ -120,4 +148,4 @@ finally:
     white_engine.quit()
     black_engine.quit()
     arduino.close()
-    servo_neutral()
+    #servo_neutral()

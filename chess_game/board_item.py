@@ -311,8 +311,8 @@ class BoardItem:
 
             # move to first node of the sequence (rapid move with g0)
             start_r, start_c = path[0]
-            x_start = start_c * node_spacing
-            y_start = start_r * node_spacing
+            x_start = start_r * node_spacing
+            y_start = start_c * node_spacing
             gcode_lines.append(f"G0 X{x_start:.3f} Y{y_start:.3f}")  # arduino move
 
             # servo up at beginning of sequence (interpreted by pi NOT ARDUINO)
@@ -322,7 +322,7 @@ class BoardItem:
             for r, c in path:
                 x = r * node_spacing
                 y = c * node_spacing
-                gcode_lines.append(f"G1 X{x:.3f} Y{y:.3f} F500")  # arduino move with lower feedrate determine empirically
+                gcode_lines.append(f"G1 X{x:.3f} Y{y:.3f} F50")  # arduino move with lower feedrate determine empirically
 
             # servo down at end of sequence again INTERPRET WITH PI
             gcode_lines.append("servo_down")
