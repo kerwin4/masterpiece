@@ -3,7 +3,7 @@ import chess.engine
 import time
 
 # CONFIGURE GAME
-STOCKFISH_PATH = "/home/chess/stockfish/stockfish-android-armv8"  # stockfish path for pi: /home/stockfish/stockfish/stockfish-android-armv8 for windows: stockfish-windows-x86-64-avx2.exe
+STOCKFISH_PATH = "stockfish-windows-x86-64-avx2.exe"  # stockfish path for pi: /home/stockfish/stockfish/stockfish-android-armv8 for windows: stockfish-windows-x86-64-avx2.exe
 ENGINE_TIME = 0.1        # seconds for stockfish to choose
 TURN_DELAY = 0         # delay between computer turns
 WHITE_SKILL = 15          # stockfish skill white
@@ -65,9 +65,9 @@ while not board_item.chess_board.is_game_over():
     board_item.display_board()
 
     # pause so I can check if promotions work
-    #if promotion is not None:
-    #    print(f"Promotion occurred! Pausing for 20 seconds...")
-    #    time.sleep(20)
+    if promotion is not None:
+        print(f"Promotion occurred! Pausing for 20 seconds...")
+        time.sleep(20)
 
     # delay if desired
     time.sleep(TURN_DELAY)
