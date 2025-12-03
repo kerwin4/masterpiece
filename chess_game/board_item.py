@@ -5,8 +5,7 @@ import heapq
 class BoardItem:
     """
     Handles the 8x8 chess board, a 10x12 state space,
-    and a 19x23 node grid (reduced by removing the outer ring).
-    Supports path planning for robotic movement.
+    and a 19x23 node grid. Supports path planning for robotic movement.
     """
 
     def __init__(self):
@@ -18,7 +17,7 @@ class BoardItem:
         self.state_cols = 12
         self.state_board = np.full((self.state_rows, self.state_cols), '.', dtype=object)
 
-        # node grid (formerly 21×25, now 19×23)
+        # node grid (19 × 23)
         self.node_rows = 19
         self.node_cols = 23
         self.node_grid = np.full((self.node_rows, self.node_cols), '.', dtype=object)
@@ -39,10 +38,7 @@ class BoardItem:
         self._populate_state_board()
         self._populate_node_grid()
 
-    # -----------------------------------------------------------
-    # Populate 10×12 state board
-    # -----------------------------------------------------------
-
+    # set up the state board with all piece locations given the 8x8 chess board
     def _populate_state_board(self):
         self.state_board[:, :] = '.'
 
@@ -59,7 +55,7 @@ class BoardItem:
         for i, p in enumerate(self.black_promos):
             self.state_board[i, 11] = p
 
-        # captured pieces
+        # add captured pieces
         for idx, p in enumerate(self.captured_black):
             r,c = self.black_captures[idx]
             self.state_board[r,c] = p
@@ -75,10 +71,7 @@ class BoardItem:
             if self.state_board[r,c] == '.':
                 self.state_board[r,c] = str(idx+1)
 
-    # -----------------------------------------------------------
-    # Populate 19×23 node grid (no outer ring)
-    # -----------------------------------------------------------
-
+    # set up the node representation by spacing out the state board
     def _populate_node_grid(self):
         self.node_grid[:, :] = '.'
         for r in range(self.state_rows):
@@ -89,14 +82,12 @@ class BoardItem:
                 if node_r < self.node_rows and node_c < self.node_cols:
                     self.node_grid[node_r, node_c] = piece
 
+    # helper function to update the visualizations
     def update_from_chess(self):
         self._populate_state_board()
         self._populate_node_grid()
 
-    # -----------------------------------------------------------
-    # Move piece on chessboard and update state/node boards
-    # -----------------------------------------------------------
-
+    # move a piece and update all of the visualizations
     def move_piece(self, uci_move: str, promotion: str = None):
         full_uci = uci_move + promotion if (promotion and not uci_move.endswith(promotion)) else uci_move
         move = self.chess_board.parse_uci(full_uci)
@@ -127,10 +118,7 @@ class BoardItem:
 
         self.update_from_chess()
 
-    # -----------------------------------------------------------
-    # Display
-    # -----------------------------------------------------------
-
+    # visualize boards
     def display_board(self):
         print(self.chess_board)
 
@@ -144,10 +132,7 @@ class BoardItem:
         for r in range(self.node_rows):
             print(" ".join(f"{str(cell):>2}" for cell in self.node_grid[r,:]))
 
-    # -----------------------------------------------------------
-    # A* path planning
-    # -----------------------------------------------------------
-
+    # A star path planning
     def plan_path(self, uci_move, promotion=None):
         full_uci = uci_move + promotion if (promotion and not uci_move.endswith(promotion)) else uci_move
 
@@ -194,9 +179,7 @@ class BoardItem:
 
         piece = self.chess_board.piece_at(start_sq)
 
-        # -------------------------------------------------------
-        # Castling
-        # -------------------------------------------------------
+        # handle castling
         if piece and piece.piece_type == chess.KING and abs(ec - sc) > 1:
             king_path = astar(start_node, end_node)
             path_seq.append(('castle_king', king_path))
@@ -222,9 +205,7 @@ class BoardItem:
             path_seq.append(('castle_rook', rook_path))
 
         else:
-            # -------------------------------------------------------
-            # Capture
-            # -------------------------------------------------------
+            # capture
             captured_piece = self.chess_board.piece_at(end_sq)
             if captured_piece:
                 caps = self.white_captures if captured_piece.color == chess.WHITE else self.black_captures
@@ -235,9 +216,7 @@ class BoardItem:
                         path_seq.append(('capture', cap_path))
                         break
 
-            # -------------------------------------------------------
-            # Promotion (side movement)
-            # -------------------------------------------------------
+            # promotions
             is_promo = promotion and piece and piece.piece_type == chess.PAWN
             if is_promo:
                 promo_col = 0 if piece.color == chess.WHITE else 11
@@ -271,10 +250,7 @@ class BoardItem:
 
         return path_seq
 
-    # -----------------------------------------------------------
-    # Visualization of paths
-    # -----------------------------------------------------------
-
+    # path visualization
     def display_paths(self, path_seq):
         vis = np.array(self.node_grid, copy=True, dtype=object)
         for step_type, path in path_seq:
@@ -290,10 +266,7 @@ class BoardItem:
         for r in range(self.node_rows):
             print(" ".join(f"{str(cell):>2}" for cell in vis[r,:]))
 
-    # -----------------------------------------------------------
-    # G-code generation
-    # -----------------------------------------------------------
-
+    # make g code always available
     @staticmethod
     def generate_gcode(path_seq, node_spacing=1.0):
         lines = []
