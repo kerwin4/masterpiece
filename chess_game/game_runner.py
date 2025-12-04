@@ -1,15 +1,19 @@
+"""
+Software testing for human vs computer chess board control.
+"""
+
 from board_item import BoardItem
 import chess.engine
 import time
 
-# CONFIGURE GAME
+# GAME CONFIGURATION
 STOCKFISH_PATH = "stockfish-windows-x86-64-avx2.exe"  # stockfish path for pi: /home/stockfish/stockfish/stockfish-android-armv8 for windows: stockfish-windows-x86-64-avx2.exe
-ENGINE_TIME = 0.1        # seconds for stockfish to choose
-TURN_DELAY = 0         # delay between computer turns
-WHITE_SKILL = 15          # stockfish skill white
-BLACK_SKILL = 10         # stockfish skill black
-SHOW_PATHS = True        # show/hide path planning
-AUTO_PLAY = True         # if true, play computer vs computer
+ENGINE_TIME = 0.1 # seconds for stockfish to choose
+TURN_DELAY = 0 # delay between computer turns
+WHITE_SKILL = 15 # stockfish skill white
+BLACK_SKILL = 10 # stockfish skill black
+SHOW_PATHS = True # show/hide path planning
+AUTO_PLAY = True # if true, play computer vs computer
 
 # BOARD SETUP
 board_item = BoardItem() # create board item
@@ -24,19 +28,31 @@ white_engine.configure({"Skill Level": WHITE_SKILL})
 black_engine.configure({"Skill Level": BLACK_SKILL})
 
 # GAME LOOP
+# keep track of turns
 turn = 0
+# while the game isn't over
 while not board_item.chess_board.is_game_over():
-    color = "White" if board_item.chess_board.turn == chess.WHITE else "Black"
+    # determine whose turn it is and display that
+    if board_item.chess_board.turn == chess.WHITE:
+        color = "White" 
+    else:
+        color = "Black"
     print(f"\n[{turn}] {color}'s turn")
 
     if AUTO_PLAY or color == "Black":  # stockfish turn
-        engine = white_engine if board_item.chess_board.turn == chess.WHITE else black_engine
+        # pick which engine is playing
+        if board_item.chess_board.turn == chess.WHITE:
+            engine = white_engine 
+        else:
+            engine = black_engine
+        # pass the current board to the engine to get the move
         result = engine.play(board_item.chess_board, chess.engine.Limit(time=ENGINE_TIME))
+        # get the move in UCI notation
         move_uci = result.move.uci()
         print(f"{color} (Stockfish) plays: {move_uci}") # show stockfish move
 
         promotion = None # promotion placeholder
-        if len(move_uci) == 5: # detect if a promotion is being made
+        if len(move_uci) == 5: # detect if a promotion is being made with a 5 character UCI
             promotion = move_uci[-1]
             move_uci = move_uci[:4]
 
@@ -46,6 +62,7 @@ while not board_item.chess_board.is_game_over():
             print(move_path)
             print(f"{color} move path:")
             board_item.display_paths(move_path)
+        # generate the corresponding gcode for the move
         gcode_str = BoardItem.generate_gcode(move_path)
         print(f"G-code for {color}:")
         print(gcode_str)
@@ -53,13 +70,16 @@ while not board_item.chess_board.is_game_over():
     else:
         # human move
         move_uci = input("Enter your move (UCI notation like e2e4): ").strip()
+        # determine if a promotion is desired
         promotion = None
-        if len(move_uci) == 5:  # e.g., e7e8q
+        if len(move_uci) == 5:  # like e7e8q
             promotion = move_uci[-1]
             move_uci = move_uci[:4]
 
     # show the board states post-move
+    # make the move
     board_item.move_piece(move_uci, promotion=promotion)
+    # visualize
     board_item.display_state()
     board_item.display_nodes()
     board_item.display_board()
