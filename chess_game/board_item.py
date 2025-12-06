@@ -235,7 +235,7 @@ class BoardItem:
             if moving_piece.color == chess.WHITE:
                 promo_list = self.white_promos
             else:
-                self.black_promos
+                promo_list = self.black_promos
 
             # swap in a pawn to replace the promoted piece
             for i,p in enumerate(promo_list):
@@ -628,7 +628,7 @@ class BoardItem:
                 # convert into physical gantry locations with known physical spacing
                 x, y = r*node_spacing, c*node_spacing
                 # move at slower specified feedrate using G1 move
-                lines.append(f"G1 X{x:.3f} Y{y:.3f} F50")
+                lines.append(f"G1 X{x:.3f} Y{y:.3f} F150")
             # lower the servo once the sequence is done
             lines.append("servo_down")
         # combine all of the commands into a single string

@@ -30,7 +30,7 @@ if not pi.connected:
 
 def servo_up():
     print("[PI] Servo up")
-    pi.set_servo_pulsewidth(SERVO_PIN, 1000)
+    pi.set_servo_pulsewidth(SERVO_PIN, 1300)
     time.sleep(0.4)
 
 def servo_down():
@@ -40,7 +40,6 @@ def servo_down():
 
 def servo_neutral():
     pi.set_servo_pulsewidth(SERVO_PIN, 0)
-
 
 # === Connect to GRBL ===
 arduino = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
@@ -59,66 +58,76 @@ def wait_for_ok():
         elif resp:
             print(f"[GRBL INIT] {resp}")
 
+servo_down()
 arduino.write(b"$H\n")      # Home axes
 wait_for_ok()
 
 arduino.write(b"G92 X0 Y0\n")  # Zero coordinates
 wait_for_ok()
 
-arduino.write(b"G20 G90\n")    # Set units to inches & absolute mode
+arduino.write(b"G20 G90\n")    # Inches + absolute mode
 wait_for_ok()
 
 
 # ---------------------------------------------------------
 #   GRBL Real-time Status Polling
 # ---------------------------------------------------------
-def wait_until_idle(timeout=30.0):
-    """
-    Poll GRBL until machine is idle or timeout is reached.
-    """
+def wait_until_idle(timeout=60.0):
     start_time = time.time()
     while True:
         arduino.reset_input_buffer()
         arduino.write(b"?\n")
-        time.sleep(0.05)  # short delay for GRBL to respond
+        time.sleep(0.1)
 
         while arduino.in_waiting:
-            status = arduino.readline().decode("utf-8").strip()
-            if status.startswith("<Idle"):
+            status = arduino.readline().decode().strip()
+            if "Idle" in status:
                 return
-            # Optional: you could also check for <Run|...> if needed
 
         if time.time() - start_time > timeout:
             raise TimeoutError("GRBL did not become idle in time")
 
+
 # ---------------------------------------------------------
-#   Send G-code or Servo Commands
+#   Send G-code or Servo Commands (LOOK-AHEAD LOGIC)
 # ---------------------------------------------------------
-def send_gcode_line(line):
+def send_gcode_line(line, next_line=None):
     """
-    Send one G-code line or handle a servo command.
-    Only proceeds to the next line when the machine is idle.
+    Only wait for idle if the NEXT line is a servo command.
     """
     line = line.strip()
-    print(line)
     if not line:
         return
 
-    # Servo commands handled in Python
+    # ----------------------------
+    # Direct servo commands
+    # ----------------------------
     if line == "servo_up":
         wait_until_idle()
         servo_up()
         return
-    elif line == "servo_down":
+
+    if line == "servo_down":
         wait_until_idle()
         servo_down()
         return
 
-    # Send normal G-code line
+    # ----------------------------
+    # G-code lines
+    # ----------------------------
     arduino.write((line + "\n").encode("utf-8"))
 
-    # Wait until the motion is finished
-    wait_until_idle()
+    # Wait only for "ok" (line accepted to buffer)
+    while True:
+        resp = arduino.readline().decode().strip()
+        if resp == "ok":
+            break
+        elif resp:
+            print("[GRBL]", resp)
+
+    # Look ahead — if next command is a servo move, ensure motion is done
+    if next_line in ("servo_up", "servo_down"):
+        wait_until_idle()
 
 
 # ---------------------------------------------------------
@@ -171,10 +180,12 @@ while not board_item.chess_board.is_game_over():
 
     # Generate G-code
     gcode_str = BoardItem.generate_gcode(move_path)
+    lines = gcode_str.splitlines()
 
-    # Execute line by line with real-time status check
-    for line in gcode_str.splitlines():
-        send_gcode_line(line)
+    # Execute using look-ahead idle logic
+    for i, line in enumerate(lines):
+        next_line = lines[i+1] if i+1 < len(lines) else None
+        send_gcode_line(line, next_line)
 
     # Update internal board state
     board_item.move_piece(move_uci, promotion=promotion)
