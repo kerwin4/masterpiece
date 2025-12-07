@@ -108,7 +108,7 @@ print(" White computer skill:", WHITE_SKILL)
 print(" Black computer skill:", BLACK_SKILL)
 
 # set up pigpio daemon and give it time to configure
-subprocess.run(["sudo", "pigpiod"])
+#subprocess.run(["sudo", "pigpiod"])
 time.sleep(1)
 # connect pigpio to the pi
 pi = pigpio.pi()
@@ -221,40 +221,41 @@ def wait_until_idle(timeout=60.0):
 # send a single line of gcode from the pi to the arduino function
 def send_gcode_line(line, next_line=None):
     """
-    Send a G-code or servo command line to the GRBL controller.
-
-    For G-code lines, waits for 'ok' to confirm the line is accepted. For servo
-    commands, waits until motion is complete before sending the next command.
-    Uses look-ahead logic: if `next_line` is a servo command, ensures the current
-    motion is finished.
-
-    Args:
-        line (str): The G-code or servo command to send
-        next_line (str, optional): The next command in sequence, used for
-            look-ahead logic. Defaults to None
-
-    Returns:
-        None
+    Only wait for idle if the NEXT line is a servo command.
     """
-    # get the line
     line = line.strip()
     if not line:
         return
 
-    # if it's a servo command, execute it on the pi
+    # ----------------------------
+    # Direct servo commands
+    # ----------------------------
     if line == "servo_up":
-        wait_until_idle() # ensure the gantry is done with the current sequence
-        servo_up() # move the servo
+        wait_until_idle()
+        servo_up()
         return
 
     if line == "servo_down":
-        wait_until_idle() # ensure the gantry is done with the current sequence
-        servo_down() # move the servo
+        wait_until_idle()
+        servo_down()
         return
 
-    # if it's a normal line to be executed, send it to the arduino
+    # ----------------------------
+    # G-code lines
+    # ----------------------------
     arduino.write((line + "\n").encode("utf-8"))
-    wait_for_ok()
+
+    # Wait only for "ok" (line accepted to buffer)
+    while True:
+        resp = arduino.readline().decode().strip()
+        if resp == "ok":
+            break
+        elif resp:
+            print("[GRBL]", resp)
+
+    # Look ahead � if next command is a servo move, ensure motion is done
+    if next_line in ("servo_up", "servo_down"):
+        wait_until_idle()
 
 
 # finally set up the game and display the starting board representations
