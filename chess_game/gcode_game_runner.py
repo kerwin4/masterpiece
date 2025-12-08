@@ -227,9 +227,7 @@ def send_gcode_line(line, next_line=None):
     if not line:
         return
 
-    # ----------------------------
-    # Direct servo commands
-    # ----------------------------
+    # servo control functions
     if line == "servo_up":
         wait_until_idle()
         servo_up()
@@ -369,8 +367,22 @@ while not board_item.chess_board.is_game_over():
 # clean up once game is over
 print("\nGame over")
 print("Result:", board_item.chess_board.result())
-white_engine.quit()
-black_engine.quit()
+
+# ask user if they want to reset the board
+resp = input("\nWould you like to reset the board to the starting position? (y/n): ").strip().lower()
+if resp == "y":
+    print("Resetting board...")
+    #board_item.reset_board()   # you implement this method inside BoardItem
+else:
+    print("Board will not be reset.")
+
+# shut down engines + hardware
+if white_engine:
+    white_engine.quit()
+if black_engine:
+    black_engine.quit()
+
 arduino.close()
 servo_neutral()
 pi.stop()
+
