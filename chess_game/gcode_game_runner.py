@@ -240,12 +240,10 @@ def send_gcode_line(line, next_line=None):
         servo_down()
         return
 
-    # ----------------------------
-    # G-code lines
-    # ----------------------------
+    # send normal gcode to arduino
     arduino.write((line + "\n").encode("utf-8"))
 
-    # Wait only for "ok" (line accepted to buffer)
+    # wait for the line to be accepted
     while True:
         resp = arduino.readline().decode().strip()
         if resp == "ok":
@@ -253,7 +251,7 @@ def send_gcode_line(line, next_line=None):
         elif resp:
             print("[GRBL]", resp)
 
-    # Look ahead � if next command is a servo move, ensure motion is done
+    # if the next move is a servo move, wait until the gantry is done
     if next_line in ("servo_up", "servo_down"):
         wait_until_idle()
 
