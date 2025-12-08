@@ -336,32 +336,31 @@ class BoardItem:
         def neighbors(r, c, goal):
             """
             Return all valid neighboring nodes for a given grid position.
-
-            Check all neighboring nodes in the cardinal direction. if they are empty,
-            an empty capture space, or the move end position, the neighbor is a valid move location.
-
-            Args:
-                r (int): Row index of the current node
-                c (int): Column index of the current node
-                goal (tuple[int, int]): Target node coordinates for the end square (row, col)
-
-            Returns:
-                list[tuple[int, int]]: List of neighboring (row, col) positions that
-                are valid move options
+            Avoid diagonals that would move the piece within 1 node of another piece.
             """
-            # placeholder list for valid neighbor nodes
             result = []
-            # check all cardinal direction neighbors
-            for nr,nc in [(r-1,c),(r+1,c),(r,c-1),(r,c+1)]:
-                # make sure we don't move outside the board area
+
+            # check all 8 neighboring nodes
+            for dr, dc in [(-1,0),(1,0),(0,-1),(0,1),(-1,-1),(-1,1),(1,-1),(1,1)]:
+                nr, nc = r + dr, c + dc
+                # check which nodes are within the board range
                 if 0 <= nr < self.node_rows and 0 <= nc < self.node_cols:
-                    # analyze the node if it is inside the board area
-                    cell = self.node_grid[nr,nc]
-                    # the piece is allowed to travel through empty squares, empty capture squares, and the goal
-                    if (cell == '.' or (isinstance(cell,str) and cell.isdigit()) or (nr,nc)==goal):
-                        # add it to the valid moves
-                        result.append((nr,nc))
+                    cell = self.node_grid[nr, nc]
+                    # determine if it's a node that can be moved through empty space, number space or the goal square
+                    if cell == '.' or (isinstance(cell, str) and cell.isdigit()) or (nr,nc) == goal:
+                        # for diagonals, check if surrounding squares are free
+                        if abs(dr) == 1 and abs(dc) == 1:
+                            blocked = False
+                            for sr in [r, nr]:
+                                for sc in [c, nc]:
+                                    # if the diagonal neighbor would bring it too close, block that option
+                                    if (sr, sc) != (r, c) and self.node_grid[sr, sc] not in ('.', str(sr*sc), self.node_grid[nr,nc]):
+                                        blocked = True
+                            if blocked:
+                                continue  # skip this diagonal
+                        result.append((nr, nc))
             return result
+
 
         def man_dist(a, b):
             """
