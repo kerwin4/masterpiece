@@ -20,7 +20,7 @@ SERVO_PIN = 17  # gpio pin for the servo
 SERIAL_PORT = "/dev/ttyACM0" # port for serial cable to arduino
 BAUD_RATE = 115200 # GRBL communication rate (MUST BE 115200)
 
-# servo control daemon
+# daemon control for servo
 def start_pigpio_daemon():
     """
     Starts the pigpio daemon if it's not already running.
@@ -39,6 +39,28 @@ def start_pigpio_daemon():
         return 1  # already started
     else:
         print(f"error pigpiod {s_err.decode()}")
+        return 2  # error
+    
+def stop_pigpio_daemon():
+    """
+    Stops the pigpio daemon if it's running.
+
+    Returns:
+        int: 0=daemon stopped, 1=daemon was not running, 2=crash/error
+    """
+    # Attempt to stop gracefully
+    p = Popen("sudo killall pigpiod", stdout=PIPE, stderr=PIPE, shell=True)
+    _, s_err = p.communicate()
+
+    # check to see what happened
+    if p.returncode == 0:
+        print("pigpiod stopped")
+        return 0  # stopped
+    elif p.returncode == 1:
+        print("pigpiod was not running")
+        return 1  # not running
+    else:
+        print(f"error stopping pigpiod: {s_err.decode()}")
         return 2  # error
 
 # USER INPUT GAME CONFIG
@@ -406,4 +428,4 @@ if black_engine:
 arduino.close()
 servo_neutral()
 pi.stop()
-
+stop_pigpio_daemon()
