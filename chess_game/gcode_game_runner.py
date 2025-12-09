@@ -168,7 +168,7 @@ def servo_up():
     for motion to complete.
     """
     print("[PI] Servo up")
-    pi.set_servo_pulsewidth(SERVO_PIN, 1300)
+    pi.set_servo_pulsewidth(SERVO_PIN, 1250)
     time.sleep(0.4)
 
 def servo_down():
