@@ -7,7 +7,7 @@ import chess.engine
 import time
 import serial
 import pigpio
-import subprocess
+from subprocess import Popen, PIPE
 from board_item import BoardItem
 
 # CONFIGURE EVERYTHING
@@ -19,6 +19,27 @@ SHOW_PATHS = True # display planned paths if True
 SERVO_PIN = 17  # gpio pin for the servo
 SERIAL_PORT = "/dev/ttyACM0" # port for serial cable to arduino
 BAUD_RATE = 115200 # GRBL communication rate (MUST BE 115200)
+
+# servo control daemon
+def start_pigpio_daemon():
+    """
+    Starts the pigpio daemon if it's not already running.
+    
+    Returns:
+        int: 0=daemon started, 1=daemon already running, 2=crash
+    """
+    p = Popen("sudo pigpiod", stdout=PIPE, stderr=PIPE, shell=True)
+    s_out, s_err = p.communicate()  # use communicate to wait for process and get output
+
+    if not s_out and not s_err:
+        print("pigpiod started")
+        return 0  # started
+    elif b"pigpio.pid" in s_err:
+        print("pigpiod already running")
+        return 1  # already started
+    else:
+        print(f"error pigpiod {s_err.decode()}")
+        return 2  # error
 
 # USER INPUT GAME CONFIG
 def ask_int(prompt, min_val=0, max_val=20):
@@ -108,7 +129,7 @@ print(" White computer skill:", WHITE_SKILL)
 print(" Black computer skill:", BLACK_SKILL)
 
 # set up pigpio daemon and give it time to configure
-#subprocess.run(["sudo", "pigpiod"])
+start_pigpio_daemon()
 time.sleep(1)
 # connect pigpio to the pi
 pi = pigpio.pi()
