@@ -397,7 +397,9 @@ while not board_item.chess_board.is_game_over():
 
     # execute the move by sending gcode
     for i, line in enumerate(lines):
+        # get the next line for servo checks
         next_line = lines[i+1] if i+1 < len(lines) else None
+        # send the line + preview next line
         send_gcode_line(line, next_line)
 
     # update the internal board state
@@ -415,7 +417,12 @@ print("Result:", board_item.chess_board.result())
 resp = input("\nWould you like to reset the board to the starting position? (y/n): ").strip().lower()
 if resp == "y":
     print("Resetting board...")
-    #board_item.reset_board()   # you implement this method inside BoardItem
+    gcode = board_item.reset_board_physical()
+    lines = gcode.splitlines()
+    for i, line in enumerate(lines):
+        next_line = lines[i + 1] if i + 1 < len(lines) else None
+        send_gcode_line(line, next_line)
+
 else:
     print("Board will not be reset.")
 

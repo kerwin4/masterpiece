@@ -10,8 +10,8 @@ import time
 STOCKFISH_PATH = "stockfish-windows-x86-64-avx2.exe"  # stockfish path for pi: /home/stockfish/stockfish/stockfish-android-armv8 for windows: stockfish-windows-x86-64-avx2.exe
 ENGINE_TIME = 0.1 # seconds for stockfish to choose
 TURN_DELAY = 0 # delay between computer turns
-WHITE_SKILL = 15 # stockfish skill white
-BLACK_SKILL = 10 # stockfish skill black
+WHITE_SKILL = 20 # stockfish skill white
+BLACK_SKILL = 0 # stockfish skill black
 SHOW_PATHS = True # show/hide path planning
 AUTO_PLAY = True # if true, play computer vs computer
 
@@ -85,9 +85,9 @@ while not board_item.chess_board.is_game_over():
     board_item.display_board()
 
     # pause so I can check if promotions work
-    if promotion is not None:
-        print(f"Promotion occurred! Pausing for 20 seconds...")
-        time.sleep(20)
+    #if promotion is not None:
+    #    print(f"Promotion occurred! Pausing for 20 seconds...")
+    #    time.sleep(20)
 
     # delay if desired
     time.sleep(TURN_DELAY)
@@ -100,3 +100,5 @@ print("Result:", board_item.chess_board.result())
 # quit engines cleanly
 white_engine.quit()
 black_engine.quit()
+stuff = board_item.reset_board_physical()
+print(stuff)
