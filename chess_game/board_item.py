@@ -694,12 +694,17 @@ class BoardItem:
         Returns:
             str: G-code instructions to reset the board
         """
+        # Vertical offset to center 8x8 board in 10x12 grid
+        row_offset = 1  
+
         # Define starting positions by piece type
         starting_positions = {
-            'R': [(7,2), (7,9)], 'N': [(7,3), (7,8)], 'B': [(7,4), (7,7)], 'Q': [(7,5)], 'K': [(7,6)],
-            'P': [(6,c) for c in range(2,10)],
-            'r': [(0,2), (0,9)], 'n': [(0,3), (0,8)], 'b': [(0,4), (0,7)], 'q': [(0,5)], 'k': [(0,6)],
-            'p': [(1,c) for c in range(2,10)]
+            'R': [(7+row_offset,2), (7+row_offset,9)], 'N': [(7+row_offset,3), (7+row_offset,8)],
+            'B': [(7+row_offset,4), (7+row_offset,7)], 'Q': [(7+row_offset,5)], 'K': [(7+row_offset,6)],
+            'P': [(6+row_offset,c) for c in range(2,10)],
+            'r': [(0+row_offset,2), (0+row_offset,9)], 'n': [(0+row_offset,3), (0+row_offset,8)],
+            'b': [(0+row_offset,4), (0+row_offset,7)], 'q': [(0+row_offset,5)], 'k': [(0+row_offset,6)],
+            'p': [(1+row_offset,c) for c in range(2,10)]
         }
 
         # Promotion lanes
@@ -709,28 +714,23 @@ class BoardItem:
         temp_board = self.state_board.copy()
         reset_paths = []
 
-        # Helper to find a random free square (not a starting square, not promotion, not capture)
+        # Helper to find a random free square (not starting square, not promotion, not capture)
         def random_free_square():
             free_squares = [(r,c) for r in range(self.state_rows) for c in range(self.state_cols)
                             if temp_board[r,c] == '.' and c not in (0,11)]
             return random.choice(free_squares) if free_squares else None
 
-        # Reset pieces to starting squares
+        # Reset main pieces
         for piece_type, targets in starting_positions.items():
             current_positions = list(zip(*np.where(temp_board == piece_type)))
+            # Remove any target squares already correct
+            current_positions = [pos for pos in current_positions if temp_board[pos] != piece_type or pos not in targets]
             for target in targets:
-                # Skip if no pieces of this type are left
+                if temp_board[target] == piece_type:
+                    continue  # already correct
                 if not current_positions:
                     break
-
-                # Skip if target already has correct piece
-                if temp_board[target] == piece_type:
-                    # Remove from positions list if it exists there
-                    if target in current_positions:
-                        current_positions.remove(target)
-                    continue
-
-                # If target is occupied by a different piece, move blocking piece first
+                # Move blocking piece if needed
                 if temp_board[target] != '.':
                     blocking_piece = temp_board[target]
                     free_sq = random_free_square()
@@ -740,10 +740,9 @@ class BoardItem:
                         end_node = (free_sq[0]*2, free_sq[1]*2)
                         reset_paths.append(self._direct_path(start_node, end_node))
                         temp_board[free_sq] = blocking_piece
-                        temp_board[np.where(temp_board == blocking_piece)[0][0],
-                                np.where(temp_board == blocking_piece)[1][0]] = '.'
+                        temp_board[start_node[0]//2, start_node[1]//2] = '.'
 
-                # Move current piece to target
+                # Move piece to target
                 piece_pos = current_positions.pop(0)
                 start_node = (piece_pos[0]*2, piece_pos[1]*2)
                 end_node = (target[0]*2, target[1]*2)
@@ -751,21 +750,25 @@ class BoardItem:
                 temp_board[target] = piece_type
                 temp_board[piece_pos] = '.'
 
-        # Reset promotion pieces
+        # Reset promotion pieces (skip if already in correct lane)
         for i, p in enumerate(self.white_promos):
             pos = np.where(temp_board == p)
-            if len(pos[0]) > 0:
-                start_node = (pos[0][0]*2, pos[1][0]*2)
-                end_node = white_promo_nodes[i]
+            if len(pos[0]) == 0:
+                continue
+            start_node = (pos[0][0]*2, pos[1][0]*2)
+            end_node = white_promo_nodes[i]
+            if start_node != end_node:
                 reset_paths.append(self._direct_path(start_node, end_node))
                 temp_board[end_node[0]//2, end_node[1]//2] = p
                 temp_board[start_node[0]//2, start_node[1]//2] = '.'
 
         for i, p in enumerate(self.black_promos):
             pos = np.where(temp_board == p)
-            if len(pos[0]) > 0:
-                start_node = (pos[0][0]*2, pos[1][0]*2)
-                end_node = black_promo_nodes[i]
+            if len(pos[0]) == 0:
+                continue
+            start_node = (pos[0][0]*2, pos[1][0]*2)
+            end_node = black_promo_nodes[i]
+            if start_node != end_node:
                 reset_paths.append(self._direct_path(start_node, end_node))
                 temp_board[end_node[0]//2, end_node[1]//2] = p
                 temp_board[start_node[0]//2, start_node[1]//2] = '.'
