@@ -684,20 +684,17 @@ class BoardItem:
     def reset_board_physical(self):
         """
         Reset the board to the starting state.
-
+        
         - Moves all pieces to their starting squares.
         - Moves promotion pieces back to promotion lanes.
         - Leaves capture squares empty.
         - Resolves blocking pieces by temporarily moving them to free squares.
+        - Updates internal temp board after each move to avoid collisions.
         - Generates G-code for all moves.
-
-        Returns:
-            str: G-code instructions to reset the board
         """
-        # Vertical offset to center 8x8 board in 10x12 grid
-        row_offset = 1  
+        row_offset = 1  # center 8x8 board in 10x12 grid
 
-        # Define starting positions by piece type
+        # Define starting positions
         starting_positions = {
             'R': [(7+row_offset,2), (7+row_offset,9)], 'N': [(7+row_offset,3), (7+row_offset,8)],
             'B': [(7+row_offset,4), (7+row_offset,7)], 'Q': [(7+row_offset,5)], 'K': [(7+row_offset,6)],
@@ -714,17 +711,28 @@ class BoardItem:
         temp_board = self.state_board.copy()
         reset_paths = []
 
-        # Helper to find a random free square (not starting square, not promotion, not capture)
+        # Keep track of promotion positions so we don’t touch them
+        promo_positions = set()
+        for i, p in enumerate(self.white_promos):
+            pos = np.where(temp_board == p)
+            if len(pos[0]) > 0:
+                promo_positions.add((pos[0][0], pos[1][0]))
+        for i, p in enumerate(self.black_promos):
+            pos = np.where(temp_board == p)
+            if len(pos[0]) > 0:
+                promo_positions.add((pos[0][0], pos[1][0]))
+
+        # Helper: find a random free square (not starting square, not promotion, not capture)
         def random_free_square():
             free_squares = [(r,c) for r in range(self.state_rows) for c in range(self.state_cols)
-                            if temp_board[r,c] == '.' and c not in (0,11)]
+                            if temp_board[r,c] == '.' and c not in (0,11) and (r,c) not in promo_positions]
             return random.choice(free_squares) if free_squares else None
 
-        # Reset main pieces
+        # Reset main board pieces
         for piece_type, targets in starting_positions.items():
-            current_positions = list(zip(*np.where(temp_board == piece_type)))
-            # Remove any target squares already correct
-            current_positions = [pos for pos in current_positions if temp_board[pos] != piece_type or pos not in targets]
+            # Exclude correct promotion pieces from current positions
+            current_positions = [(r,c) for r,c in zip(*np.where(temp_board == piece_type))
+                                if (r,c) not in promo_positions]
             for target in targets:
                 if temp_board[target] == piece_type:
                     continue  # already correct
@@ -735,12 +743,11 @@ class BoardItem:
                     blocking_piece = temp_board[target]
                     free_sq = random_free_square()
                     if free_sq:
-                        start_node = (np.where(temp_board == blocking_piece)[0][0]*2,
-                                    np.where(temp_board == blocking_piece)[1][0]*2)
+                        start_node = (target[0]*2, target[1]*2)
                         end_node = (free_sq[0]*2, free_sq[1]*2)
                         reset_paths.append(self._direct_path(start_node, end_node))
                         temp_board[free_sq] = blocking_piece
-                        temp_board[start_node[0]//2, start_node[1]//2] = '.'
+                        temp_board[target] = '.'
 
                 # Move piece to target
                 piece_pos = current_positions.pop(0)
@@ -750,7 +757,7 @@ class BoardItem:
                 temp_board[target] = piece_type
                 temp_board[piece_pos] = '.'
 
-        # Reset promotion pieces (skip if already in correct lane)
+        # Reset promotion pieces (skip if already correct)
         for i, p in enumerate(self.white_promos):
             pos = np.where(temp_board == p)
             if len(pos[0]) == 0:
