@@ -697,10 +697,10 @@ class BoardItem:
         """
         # Starting board positions by piece type
         starting_positions = {
-            'R': [(7,2), (7,9)], 'N': [(7,3), (7,8)], 'B': [(7,4), (7,7)],
-            'Q': [(7,5)], 'K': [(7,6)], 'P': [(6,c) for c in range(2,10)],
-            'r': [(0,2), (0,9)], 'n': [(0,3), (0,8)], 'b': [(0,4), (0,7)],
-            'q': [(0,5)], 'k': [(0,6)], 'p': [(1,c) for c in range(2,10)]
+            'R': [(8,2), (8,9)], 'N': [(8,3), (8,8)], 'B': [(8,4), (8,7)],
+            'Q': [(8,5)], 'K': [(8,6)], 'P': [(7,c) for c in range(2,10)],
+            'r': [(1,2), (1,9)], 'n': [(1,3), (1,8)], 'b': [(1,4), (1,7)],
+            'q': [(1,5)], 'k': [(1,6)], 'p': [(2,c) for c in range(2,10)]
         }
 
         # Promotion nodes in node coordinates (19x23)
@@ -710,6 +710,12 @@ class BoardItem:
         temp_board = self.state_board.copy()
         reset_paths = []
         locked_squares = set()
+
+        # Lock any normal piece already in its correct starting square
+        for piece_type, targets in starting_positions.items():
+            for t in targets:
+                if temp_board[t] == piece_type:
+                    locked_squares.add(t)
 
         # Lock promotion pieces already in the correct square
         for i, p in enumerate(self.white_promos):

@@ -12,8 +12,8 @@ from board_item import BoardItem
 
 # CONFIGURE EVERYTHING
 STOCKFISH_PATH = "/home/chess/stockfish/stockfish-android-armv8" # path to stockfish engine, for pi: /home/chess/stockfish/stockfish-android-armv8
-ENGINE_TIME = 0.1 # amount of time stockfish has to make a decision
-TURN_DELAY = 0.5 # added delay to prevent runaway memory
+ENGINE_TIME = 0.2 # amount of time stockfish has to make a decision
+TURN_DELAY = 0.1 # added delay to prevent runaway memory
 SHOW_PATHS = True # display planned paths if True
 
 SERVO_PIN = 17  # gpio pin for the servo
