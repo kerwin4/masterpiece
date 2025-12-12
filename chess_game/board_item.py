@@ -189,64 +189,55 @@ class BoardItem:
     def move_piece(self, uci_move: str, promotion: str = None):
         """
         Execute a chess move on the logical board and update internal grids.
-
-        Accounts for captures and promotions should they occur. Promotions are tracked via the
-        UCI input
-
-        Args:
-            uci_move (str): 4 character UCI move string following the format "e2e4", "e7e8"
-            promotion (str, optional): Promotion letter 'Q', 'R', 'B', 'N' if applicable
-
-        Returns:
-            None
+        Handles captures, promotions, and en passant.
         """
-        # recreate the full UCI so python chess library can interpret it if needed
-        # if there is a promotion, it should be included in the full UCI
+        # recreate full UCI for python-chess
         full_uci = uci_move + promotion if (promotion and not uci_move.endswith(promotion)) else uci_move
-        # determine move legality from python chess library by passing the UCI
         move = self.chess_board.parse_uci(full_uci)
-        # determine what piece is making the move by checking what is at the starting square
         moving_piece = self.chess_board.piece_at(move.from_square)
-        # check to see if the move will result in a capture by seeing what is at the end square
         captured_piece = self.chess_board.piece_at(move.to_square)
-        # if there is a piece at the end square, add it to the opponent's captured pieces
+
+        # Detect en passant: pawn moves diagonally to empty square
+        is_en_passant = False
+        if moving_piece and moving_piece.piece_type == chess.PAWN:
+            from_rank, from_file = chess.square_rank(move.from_square), chess.square_file(move.from_square)
+            to_rank, to_file = chess.square_rank(move.to_square), chess.square_file(move.to_square)
+            if abs(to_file - from_file) == 1 and captured_piece is None:
+                is_en_passant = True
+                # Captured pawn is on the same file as destination, rank of the starting pawn
+                captured_sq = chess.square(to_file, from_rank)
+                captured_piece = self.chess_board.piece_at(captured_sq)
+
+        # Update captured pieces
         if captured_piece:
             if captured_piece.color == chess.WHITE:
                 self.captured_white.append(captured_piece.symbol())
             else:
                 self.captured_black.append(captured_piece.symbol())
 
-        # promotion handling
-        # determine that a promotion should occur
+        # Promotion handling
         is_promotion = (
-            moving_piece # a moving piece is required
-            and moving_piece.piece_type == chess.PAWN # the piece must be a pawn
-            and promotion or move.promotion # and a promotion piece must be specified in the UCI
-            )
-        
-        if is_promotion: # if a promotion is occuring
-            # figure out which piece to communicate to python chess
+            moving_piece
+            and moving_piece.piece_type == chess.PAWN
+            and (promotion or move.promotion)
+        )
+
+        if is_promotion:
             promo_map = {'Q': chess.QUEEN, 'R': chess.ROOK, 'B': chess.BISHOP, 'N': chess.KNIGHT}
-            # determine the character to use when visualizing
             promo_char = promotion.upper()
-            # push the move to python chess so it actually occurs with the promotion
             self.chess_board.push(chess.Move(move.from_square, move.to_square, promotion=promo_map[promo_char]))
 
-            # get the list of promotions for the correct color
-            if moving_piece.color == chess.WHITE:
-                promo_list = self.white_promos
-            else:
-                promo_list = self.black_promos
-
-            # swap in a pawn to replace the promoted piece
+            promo_list = self.white_promos if moving_piece.color == chess.WHITE else self.black_promos
             for i,p in enumerate(promo_list):
                 if p.upper() == promo_char:
                     promo_list[i] = 'P' if moving_piece.color == chess.WHITE else 'p'
                     break
         else:
-            self.chess_board.push(move) # make a move as normal if no promotion
-        # update the visualizations after the move has occurred
+            self.chess_board.push(move)
+
+        # Update visualizations
         self.update_from_chess()
+
 
     # visualize boards
     def display_board(self):
@@ -333,232 +324,130 @@ class BoardItem:
         path_seq = []
 
         # helper functions for pathfinding
-        # determine all valid neighboring nodes to a given node
         def neighbors(r, c, goal):
-            """
-            Compute valid neighboring nodes around (r, c).
-
-            Orthogonal moves are allowed if within bounds and the cell is empty,
-            numeric, or the goal. Diagonal moves are additionally restricted,
-            both adjacent orthogonal squares involved in the diagonal must be free
-            to avoid moving too close to another piece.
-
-            Args:
-                r (int): Current row index
-                c (int): Current column index
-                goal (tuple[int, int]): Goal node coordinates (row, col)
-
-            Returns:
-                list[tuple[int, int]]: List of valid neighbor (row, col) positions
-            """
             result = []
-
-            # check all 8 neighboring nodes
             for dr, dc in [(-1,0),(1,0),(0,-1),(0,1),(-1,-1),(-1,1),(1,-1),(1,1)]:
                 nr, nc = r + dr, c + dc
-                # check which nodes are within the board range
                 if 0 <= nr < self.node_rows and 0 <= nc < self.node_cols:
                     cell = self.node_grid[nr, nc]
-                    # determine if it's a node that can be moved through: empty space, number space or the goal square
                     if cell == '.' or (isinstance(cell, str) and cell.isdigit()) or (nr,nc) == goal:
-                        # for diagonals, check if surrounding squares are free
                         if abs(dr) == 1 and abs(dc) == 1:
                             blocked = False
-                            for sr in [r, nr]:
-                                for sc in [c, nc]:
-                                    # if the diagonal neighbor would bring it too close to another piece, block that option
-                                    if (sr, sc) != (r, c) and self.node_grid[sr, sc] not in ('.', str(sr*sc), self.node_grid[nr,nc]):
+                            for sr2 in [r, nr]:
+                                for sc2 in [c, nc]:
+                                    if (sr2, sc2) != (r, c) and self.node_grid[sr2, sc2] not in ('.', str(sr2*sc2), self.node_grid[nr,nc]):
                                         blocked = True
                             if blocked:
-                                continue  # skip this diagonal
+                                continue
                         result.append((nr, nc))
             return result
 
-
         def man_dist(a, b):
-            """
-            Compute the Manhattan distance (traveling along triangle legs rather than 
-            hypoteneuse) between two nodes for A* short path optimization purposes.
-
-            Args:
-                a (tuple[int, int]): First node (row, col)
-                b (tuple[int, int]): Second node (row, col)
-
-            Returns:
-                int: Manhattan distance |a_r - b_r| + |a_c - b_c|
-            """
             return abs(a[0]-b[0]) + abs(a[1]-b[1])
 
         def astar(start, goal):
-            """
-            Perform A* pathfinding between two nodes on the grid.
-
-            Uses a priority queue where each entry stores:
-                (f_score, g_score, current_node, path_taken).
-
-            Movement is restricted according to the rules defined in `neighbors()`.
-            If the goal is reachable, the function returns the full path from start
-            to goal, inclusive.
-
-            Args:
-                start (tuple[int, int]): Starting node coordinates (row, col)
-                goal (tuple[int, int]): Target node coordinates (row, col)
-
-            Returns:
-                list[tuple[int, int]] | None:
-                    The sequence of nodes forming the shortest valid path,
-                    or None if no path exists.
-            """
-            # ff start and goal are the same, the path is just the start
             if start == goal:
                 return [start]
-
-            # priority queue for nodes to explore: (estimated total cost, steps so far, current node, path taken)
             open_set = []
             heapq.heappush(open_set, (man_dist(start, goal), 0, start, [start]))
-
-            # keep track of visited nodes so we don't revisit them
             visited = set()
-
-            # loop until there are no more nodes to explore
             while open_set:
-                # take the node with the lowest estimated total cost
                 _, g, current, path = heapq.heappop(open_set)
-                
-                # skip if we've already visited this node
                 if current in visited:
                     continue
-                # add the current node to visited nodes
                 visited.add(current)
-                
-                # if we reached the goal, return the path
                 if current == goal:
                     return path
-                
-                # explore all valid neighboring nodes that haven't already been visited
                 r, c = current
                 for nbr in neighbors(r, c, goal):
                     if nbr not in visited:
-                        # push neighbor into queue with updated cost and path
                         heapq.heappush(open_set, (g + 1 + man_dist(nbr, goal), g + 1, nbr, path + [nbr]))
-
-            # if no more nodes, pathfinding failed
             return None
 
-        # get the piece to move by checking what is at the start square
         piece = self.chess_board.piece_at(start_sq)
 
         # handle castling
-        # if we have a king that's moving more than one space, it must be a castle
-        if (piece 
-            and piece.piece_type == chess.KING 
-            and abs(ec - sc) > 1
-        ):
-            # find the king's path using A*
+        if piece and piece.piece_type == chess.KING and abs(ec - sc) > 1:
             king_path = astar(start_node, end_node)
-            # add this first step to the overall move path
             path_seq.append(('castle_king', king_path))
-
-            # check which side the king is castling on to determine where the rook moves to/from
             if ec > sc:
                 rook_start_sq = chess.square(7, sr)
                 rook_end_sq   = chess.square(ec-1, sr)
             else:
                 rook_start_sq = chess.square(0, sr)
                 rook_end_sq   = chess.square(ec+1, sr)
-
-            # get the start and end column for the rook based on the squares
             rsf = chess.square_file(rook_start_sq)
             ref = chess.square_file(rook_end_sq)
-
-            # determine the starting and ending nodes
             rook_start_node = ((8-sr)*2, (rsf+2)*2)
             rook_end_node   = ((8-sr)*2, (ref+2)*2)
-
-            # ensure the rook can't move through the king's end position by setting it's end square
-            # to be a blocked character temporarily
             saved = self.node_grid[end_node[0], end_node[1]]
             self.node_grid[end_node[0], end_node[1]] = '#'
-            # plan the castling rook's path around the king
-            # and add the rook's move to the overall move path
             path_seq.append(('castle_rook', astar(rook_start_node, rook_end_node)))
             self.node_grid[end_node[0], end_node[1]] = saved
 
-
         else:
-            # handle captures
-            # get the piece at the end square if any
             captured_piece = self.chess_board.piece_at(end_sq)
-            # if there is a piece to be captured, determine which color it is
+            # --- EN PASSANT DETECTION ---
+            is_en_passant = False
+            en_passant_node = None
+            if piece and piece.piece_type == chess.PAWN:
+                if abs(ec - sc) == 1 and captured_piece is None:
+                    # pawn moved diagonally but destination empty -> en passant
+                    is_en_passant = True
+                    captured_sq = chess.square(ec, sr)  # pawn captured is on the same rank as start
+                    captured_piece = self.chess_board.piece_at(captured_sq)
+                    en_passant_node = ((8 - sr) * 2, (ec + 2) * 2)
+
             if captured_piece:
                 if captured_piece.color == chess.WHITE:
-                    caps = self.white_captures 
-                else: 
+                    caps = self.white_captures
+                else:
                     caps = self.black_captures
-                # find the next empty capture space for that color
-                for idx,(r,c) in enumerate(caps):
-                    if self.state_board[r,c] == str(idx+1):
-                        # get the node for the empty capture space
-                        cap_node = (r*2, c*2)
-                        # plan the path for the captured piece
-                        cap_path = astar(end_node, cap_node)
-                        # add the captured piece's path to the overall move path
-                        path_seq.append(('capture', cap_path))
-                        break
+                if is_en_passant:
+                    # Determine node coordinates of the captured pawn's actual position
+                    captured_sq = chess.square(ec, sr)  # captured pawn is on same rank as start
+                    captured_node = ((8 - sr) * 2, (ec + 2) * 2)  # node grid coordinates
+
+                    # Find next empty capture slot for captured pawn
+                    caps = self.white_captures if captured_piece.color == chess.WHITE else self.black_captures
+                    capture_slot_node = None
+                    for idx, (r, c) in enumerate(caps):
+                        if self.state_board[r, c] == str(idx + 1):
+                            capture_slot_node = (r * 2, c * 2)
+                            break
+
+                    # Add the captured pawn movement path from its current square to the capture slot
+                    if captured_node and capture_slot_node:
+                        path_seq.append(('capture', astar(captured_node, capture_slot_node)))
+
+                else:
+                    for idx,(r,c) in enumerate(caps):
+                        if self.state_board[r,c] == str(idx+1):
+                            cap_node = (r*2, c*2)
+                            cap_path = astar(end_node, cap_node)
+                            path_seq.append(('capture', cap_path))
+                            break
 
             # promotion handling
-            # determine if a promotion is occurring, piece being promoted must be a pawn
-            is_promo = (
-                promotion 
-                and piece 
-                and piece.piece_type == chess.PAWN
-            )
-
+            is_promo = promotion and piece and piece.piece_type == chess.PAWN
             if is_promo:
-                # get the column of promotion pieces for the correct color
-                if piece.color == chess.WHITE:
-                    promo_col = 0 
-                else:
-                    promo_col = 11
-
+                promo_col = 0 if piece.color == chess.WHITE else 11
                 promo_node = None
-                # find the first node for the desired promotion piece 
-                # in the column of promotion pieces
                 for r in range(self.state_rows):
                     if self.state_board[r,promo_col].upper() == promotion.upper():
                         promo_node = (r*2, promo_col*2)
                         break
-
-                # pick the node for the pawn's interim position next to the promotion piece
-                # depending on which side the promotion is occurring
-                if promo_col == 0:
-                    side_col = 1
-                else:
-                    side_col = (self.node_cols - 2)
-                # determine the node to the side of the promotion piece where the pawn should 
-                # temporarily stop
+                side_col = 1 if promo_col == 0 else (self.node_cols - 2)
                 side_node = (promo_node[0], side_col)
-
-                # plan the path for the pawn to move next to the promotion piece's starting point
-                # and add that path to the overall move path
                 path_seq.append(('promotion_pawn', astar(start_node, side_node)))
-
-                # again add the pawn's midpoint as an obstacle so the promotion piece doesn't move
-                # through it
                 saved = self.node_grid[side_node[0], side_node[1]]
                 self.node_grid[side_node[0], side_node[1]] = '#'
-                # plan the promotion's piece move around the pawn's interim position
-                # and add the path to the overall move path
                 path_seq.append(('promotion_piece', astar(promo_node, end_node)))
                 self.node_grid[side_node[0], side_node[1]] = saved
-                # add the final pawn move to the overall path
                 path_seq.append(('promotion_pawn_final', [side_node, promo_node]))
-
             else:
-                # any standard non-capture move plans as normal and is added to the overall path
                 path_seq.append(('move', astar(start_node, end_node)))
 
-        # show missing paths
         for i,(step,path) in enumerate(path_seq):
             if path is None:
                 print(f"path not found for {step}")
