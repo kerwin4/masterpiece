@@ -5,7 +5,7 @@ def main():
     pi, arduino = init_hardware()
 
     while True:
-        run_game()   # play a full game
+        run_game(pi, arduino) # play a full game
 
         again = input("\nStart a new game? (y/n): ").strip().lower()
         if again != "y":

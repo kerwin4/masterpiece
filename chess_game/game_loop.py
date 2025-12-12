@@ -20,16 +20,6 @@ SERVO_PIN = 17  # gpio pin for the servo
 SERIAL_PORT = "/dev/ttyACM0" # port for serial cable to arduino
 BAUD_RATE = 115200 # GRBL communication rate (MUST BE 115200)
 
-# connect to GRBL arduino over serial
-arduino = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
-time.sleep(2)
-
-# connect pigpio to the pi
-pi = pigpio.pi()
-# throw an error if no connection
-if not pi.connected:
-    raise RuntimeError("pigpiod broken")
-
 # daemon control for servo
 def start_pigpio_daemon():
     """
@@ -62,7 +52,7 @@ def stop_pigpio_daemon():
         print(f"error stopping pigpiod: {s_err.decode()}")
 
 # USER INPUT GAME CONFIG
-def ask_int(prompt, min_val=0, max_val=20):
+def ask_int(prompt, min_val=1350, max_val=2850):
     """
     Prompt the user to enter an integer within a specified range.
 
@@ -105,7 +95,7 @@ def ask_choice(prompt, choices):
         print("Invalid choice. Options are:", ", ".join(choices)) # otherwise reprompt the user for new input
 
 # SERVO COMMAND FUNCTIONS
-def servo_up():
+def servo_up(pi):
     """
     Move the servo to the "up" position.
 
@@ -115,7 +105,7 @@ def servo_up():
     pi.set_servo_pulsewidth(SERVO_PIN, 1250)
     time.sleep(0.4)
 
-def servo_down():
+def servo_down(pi):
     """
     Move the servo to the "down" position.
 
@@ -125,7 +115,7 @@ def servo_down():
     pi.set_servo_pulsewidth(SERVO_PIN, 1900)
     time.sleep(0.4)
 
-def servo_neutral():
+def servo_neutral(pi):
     """
     Stop sending PWM signals to the servo.
 
@@ -135,7 +125,7 @@ def servo_neutral():
 
 # GRBL queues moves if it receives them faster than it's executing them,
 # so this function only confirms that a line has been added to the queue
-def wait_for_ok():
+def wait_for_ok(arduino):
     """
     Wait for a response of 'ok' from the GRBL controller.
 
@@ -157,7 +147,7 @@ def wait_for_ok():
 # by the arduino, we need to move the servo at the right moments.
 # By waiting until a sequence of moves is completed and the gantry is idle,
 # we can guarantee the servo moves at the right time
-def wait_until_idle(timeout=60.0):
+def wait_until_idle(arduino, timeout=60.0):
     """
     Wait until the GRBL controller reports that it is idle.
 
@@ -187,7 +177,7 @@ def wait_until_idle(timeout=60.0):
             raise TimeoutError("GRBL did not become idle in time")
 
 # send a single line of gcode from the pi to the arduino function
-def send_gcode_line(line, next_line=None):
+def send_gcode_line(line, arduino, pi, next_line=None):
     """
     Only wait for idle if the NEXT line is a servo command.
     """
@@ -197,13 +187,13 @@ def send_gcode_line(line, next_line=None):
 
     # servo control functions
     if line == "servo_up":
-        wait_until_idle()
-        servo_up()
+        wait_until_idle(arduino)
+        servo_up(pi)
         return
 
     if line == "servo_down":
-        wait_until_idle()
-        servo_down()
+        wait_until_idle(arduino)
+        servo_down(pi)
         return
 
     # send normal gcode to arduino
@@ -219,12 +209,9 @@ def send_gcode_line(line, next_line=None):
 
     # if the next move is a servo move, wait until the gantry is done
     if next_line in ("servo_up", "servo_down"):
-        wait_until_idle()
+        wait_until_idle(arduino)
 
-def run_game():
-    # set up pigpio daemon and give it time to configure
-    start_pigpio_daemon()
-    time.sleep(1)
+def run_game(pi, arduino):
     arduino.reset_input_buffer()
 
     # choose game mode
@@ -249,16 +236,16 @@ def run_game():
         AUTO_PLAY = True
         HUMAN_PLAYS_WHITE = False
         print("\nComputer vs Computer selected.")
-        WHITE_SKILL = ask_int("Enter White engine skill level (0-20): ")
-        BLACK_SKILL = ask_int("Enter Black engine skill level (0-20): ")
+        WHITE_SKILL = ask_int("Enter White engine skill level (1350-2850): ")
+        BLACK_SKILL = ask_int("Enter Black engine skill level (1350-2850): ")
     elif mode == "1":
         print("\nHuman vs Computer selected.")
         color_choice = ask_choice("Do you want to play as White or Black? ", ["White", "Black"])
         HUMAN_PLAYS_WHITE = (color_choice == "White")
         if HUMAN_PLAYS_WHITE:
-            BLACK_SKILL = ask_int("Enter Computer (Black) skill level (0-20): ")
+            BLACK_SKILL = ask_int("Enter Computer (Black) skill level (1350-2850): ")
         else:
-            WHITE_SKILL = ask_int("Enter Computer (White) skill level (0-20): ")
+            WHITE_SKILL = ask_int("Enter Computer (White) skill level (1350-2850): ")
     else:
         print("\nHuman vs Human selected.")
         HUMAN_VS_HUMAN = True
@@ -272,13 +259,13 @@ def run_game():
     print(" Black computer skill:", BLACK_SKILL)
 
     # start gantry setup
-    servo_down()
+    servo_down(pi)
     arduino.write(b"$H\n")
-    wait_for_ok()
+    wait_for_ok(arduino)
     arduino.write(b"G92 X0 Y0\n")
-    wait_for_ok()
+    wait_for_ok(arduino)
     arduino.write(b"G20 G90\n")
-    wait_for_ok()
+    wait_for_ok(arduino)
 
     # initialize board
     board_item = BoardItem()
@@ -290,10 +277,16 @@ def run_game():
     if AUTO_PLAY or (not HUMAN_VS_HUMAN and not HUMAN_PLAYS_WHITE):
         if AUTO_PLAY or not HUMAN_PLAYS_WHITE:
             black_engine = chess.engine.SimpleEngine.popen_uci(STOCKFISH_PATH)
-            black_engine.configure({"Skill Level": BLACK_SKILL})
+            black_engine.configure({
+                "UCI_LimitStrength": True,
+                "UCI_Elo": BLACK_SKILL
+            })
         if AUTO_PLAY or HUMAN_PLAYS_WHITE == False:
             white_engine = chess.engine.SimpleEngine.popen_uci(STOCKFISH_PATH)
-            white_engine.configure({"Skill Level": WHITE_SKILL})
+            white_engine.configure({
+                "UCI_LimitStrength": True,
+                "UCI_Elo": WHITE_SKILL
+            })
 
     # main game loop
     turn = 1
@@ -360,7 +353,7 @@ def run_game():
         lines = gcode_str.splitlines()
         for i, line in enumerate(lines):
             next_line = lines[i + 1] if i + 1 < len(lines) else None
-            send_gcode_line(line, next_line)
+            send_gcode_line(line, arduino, pi, next_line)
 
         board_item.move_piece(move_uci, promotion=promotion)
         board_item.display_board()
@@ -383,7 +376,7 @@ def run_game():
         lines = gcode.splitlines()
         for i, line in enumerate(lines):
             next_line = lines[i + 1] if i + 1 < len(lines) else None
-            send_gcode_line(line, next_line)
+            send_gcode_line(line, arduino, pi, next_line)
     else:
         print("Board will not be reset.")
 
