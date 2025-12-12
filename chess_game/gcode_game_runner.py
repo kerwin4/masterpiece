@@ -33,13 +33,10 @@ def start_pigpio_daemon():
 
     if not s_out and not s_err:
         print("pigpiod started")
-        return 0  # started
     elif b"pigpio.pid" in s_err:
         print("pigpiod already running")
-        return 1  # already started
     else:
         print(f"error pigpiod {s_err.decode()}")
-        return 2  # error
     
 def stop_pigpio_daemon():
     """
@@ -55,13 +52,10 @@ def stop_pigpio_daemon():
     # check to see what happened
     if p.returncode == 0:
         print("pigpiod stopped")
-        return 0  # stopped
     elif p.returncode == 1:
         print("pigpiod was not running")
-        return 1  # not running
     else:
         print(f"error stopping pigpiod: {s_err.decode()}")
-        return 2  # error
 
 # USER INPUT GAME CONFIG
 def ask_int(prompt, min_val=0, max_val=20):

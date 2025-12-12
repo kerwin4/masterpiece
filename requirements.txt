@@ -1,5 +1,4 @@
 chess~=1.11.2
 numpy~=2.3.3
-serial~=0.0.97
 pyserial~=3.5
-gpiozero~=2.0.1
+pigpio~=1.78

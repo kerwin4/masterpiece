@@ -1,5 +1,5 @@
 """
-Full game control for computer vs computer physical chess board.
+Full game control for physical gantry chess board.
 """
 
 import chess
@@ -13,40 +13,41 @@ from board_item import BoardItem
 # CONFIGURE EVERYTHING
 STOCKFISH_PATH = "/home/chess/stockfish/stockfish-android-armv8" # path to stockfish engine, for pi: /home/chess/stockfish/stockfish-android-armv8
 ENGINE_TIME = 0.2 # amount of time stockfish has to make a decision
-TURN_DELAY = 0.1 # added delay to prevent runaway memory
+TURN_DELAY = 0 # added delay to prevent runaway memory if desired
 SHOW_PATHS = True # display planned paths if True
 
 SERVO_PIN = 17  # gpio pin for the servo
 SERIAL_PORT = "/dev/ttyACM0" # port for serial cable to arduino
 BAUD_RATE = 115200 # GRBL communication rate (MUST BE 115200)
 
+# connect to GRBL arduino over serial
+arduino = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
+time.sleep(2)
+
+# connect pigpio to the pi
+pi = pigpio.pi()
+# throw an error if no connection
+if not pi.connected:
+    raise RuntimeError("pigpiod broken")
+
 # daemon control for servo
 def start_pigpio_daemon():
     """
     Starts the pigpio daemon if it's not already running.
-    
-    Returns:
-        int: 0=daemon started, 1=daemon already running, 2=crash
     """
     p = Popen("sudo pigpiod", stdout=PIPE, stderr=PIPE, shell=True)
     s_out, s_err = p.communicate()  # use communicate to wait for process and get output
 
     if not s_out and not s_err:
         print("pigpiod started")
-        return 0  # started
     elif b"pigpio.pid" in s_err:
         print("pigpiod already running")
-        return 1  # already started
     else:
         print(f"error pigpiod {s_err.decode()}")
-        return 2  # error
     
 def stop_pigpio_daemon():
     """
     Stops the pigpio daemon if it's running.
-
-    Returns:
-        int: 0=daemon stopped, 1=daemon was not running, 2=crash/error
     """
     # Attempt to stop gracefully
     p = Popen("sudo killall pigpiod", stdout=PIPE, stderr=PIPE, shell=True)
@@ -55,13 +56,10 @@ def stop_pigpio_daemon():
     # check to see what happened
     if p.returncode == 0:
         print("pigpiod stopped")
-        return 0  # stopped
     elif p.returncode == 1:
         print("pigpiod was not running")
-        return 1  # not running
     else:
         print(f"error stopping pigpiod: {s_err.decode()}")
-        return 2  # error
 
 # USER INPUT GAME CONFIG
 def ask_int(prompt, min_val=0, max_val=20):
@@ -106,15 +104,6 @@ def ask_choice(prompt, choices):
             return choices_lower[val] # return it
         print("Invalid choice. Options are:", ", ".join(choices)) # otherwise reprompt the user for new input
 
-# set up pigpio daemon and give it time to configure
-start_pigpio_daemon()
-time.sleep(1)
-# connect pigpio to the pi
-pi = pigpio.pi()
-# throw an error if no connection
-if not pi.connected:
-    raise RuntimeError("pigpiod broken")
-
 # SERVO COMMAND FUNCTIONS
 def servo_up():
     """
@@ -123,7 +112,6 @@ def servo_up():
     Sends the appropriate PWM signal to the configured GPIO pin and waits 0.4s
     for motion to complete.
     """
-    print("[PI] Servo up")
     pi.set_servo_pulsewidth(SERVO_PIN, 1250)
     time.sleep(0.4)
 
@@ -134,7 +122,6 @@ def servo_down():
     Sends the appropriate PWM signal to the configured GPIO pin and waits 0.4s
     for motion to complete.
     """
-    print("[PI] Servo down")
     pi.set_servo_pulsewidth(SERVO_PIN, 1900)
     time.sleep(0.4)
 
@@ -145,10 +132,6 @@ def servo_neutral():
     Sets the servo to neutral/off state.
     """
     pi.set_servo_pulsewidth(SERVO_PIN, 0)
-
-# connect to GRBL arduino over serial
-arduino = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
-time.sleep(2)
 
 # GRBL queues moves if it receives them faster than it's executing them,
 # so this function only confirms that a line has been added to the queue
@@ -239,6 +222,9 @@ def send_gcode_line(line, next_line=None):
         wait_until_idle()
 
 def run_game():
+    # set up pigpio daemon and give it time to configure
+    start_pigpio_daemon()
+    time.sleep(1)
     arduino.reset_input_buffer()
 
     # choose game mode
@@ -280,8 +266,8 @@ def run_game():
     # display configuration
     print("\nConfiguration complete:")
     print(" Computer vs computer?", AUTO_PLAY)
-    print(" Human plays white?", HUMAN_PLAYS_WHITE)
     print(" Human vs Human?", HUMAN_VS_HUMAN)
+    print(" Human plays white?", HUMAN_PLAYS_WHITE)
     print(" White computer skill:", WHITE_SKILL)
     print(" Black computer skill:", BLACK_SKILL)
 
@@ -400,13 +386,6 @@ def run_game():
             send_gcode_line(line, next_line)
     else:
         print("Board will not be reset.")
-
-    # shutdown hardware
-    arduino.close()
-    servo_neutral()
-    pi.stop()
-    stop_pigpio_daemon()
-
 
 def init_hardware():
     start_pigpio_daemon()
