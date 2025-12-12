@@ -10,7 +10,7 @@ import pigpio
 from subprocess import Popen, PIPE
 from board_item import BoardItem
 
-# CONFIGURE EVERYTHING
+# GENERAL CONFIGURATION
 STOCKFISH_PATH = "/home/chess/stockfish/stockfish-android-armv8" # path to stockfish engine, for pi: /home/chess/stockfish/stockfish-android-armv8
 ENGINE_TIME = 0.2 # amount of time stockfish has to make a decision
 TURN_DELAY = 0 # added delay to prevent runaway memory if desired
@@ -20,10 +20,13 @@ SERVO_PIN = 17  # gpio pin for the servo
 SERIAL_PORT = "/dev/ttyACM0" # port for serial cable to arduino
 BAUD_RATE = 115200 # GRBL communication rate (MUST BE 115200)
 
-# daemon control for servo
+# PI GPIO DAEMON
 def start_pigpio_daemon():
     """
     Starts the pigpio daemon if it's not already running.
+
+    Returns:
+        None
     """
     p = Popen("sudo pigpiod", stdout=PIPE, stderr=PIPE, shell=True)
     s_out, s_err = p.communicate()  # use communicate to wait for process and get output
@@ -38,8 +41,11 @@ def start_pigpio_daemon():
 def stop_pigpio_daemon():
     """
     Stops the pigpio daemon if it's running.
+
+    Returns:
+        None
     """
-    # Attempt to stop gracefully
+    # attempt to stop gracefully
     p = Popen("sudo killall pigpiod", stdout=PIPE, stderr=PIPE, shell=True)
     _, s_err = p.communicate()
 
@@ -55,13 +61,13 @@ def stop_pigpio_daemon():
 def ask_int(prompt, min_val=1350, max_val=2850):
     """
     Prompt the user to enter an integer within a specified range.
-
     Repeats the prompt until a valid integer within the provided range is entered.
+    Primarily used for determining stockfish ELO.
 
     Args:
         prompt (str): The message to display to the user
-        min_val (int, optional): Minimum valid value (inclusive). Defaults to 0
-        max_val (int, optional): Maximum valid value (inclusive). Defaults to 20
+        min_val (int): Minimum valid value (inclusive) defaults to 1350
+        max_val (int): Maximum valid value (inclusive) defaults to 2850
 
     Returns:
         int: The integer entered by the user within the specified range
@@ -77,7 +83,6 @@ def ask_int(prompt, min_val=1350, max_val=2850):
 def ask_choice(prompt, choices):
     """
     Prompt the user to select a choice from a list.
-
     Repeats the prompt until a valid choice from "choices" is entered regardless of letter case
 
     Args:
@@ -98,9 +103,14 @@ def ask_choice(prompt, choices):
 def servo_up(pi):
     """
     Move the servo to the "up" position.
-
     Sends the appropriate PWM signal to the configured GPIO pin and waits 0.4s
     for motion to complete.
+
+    Args:
+        pi :
+
+    Returns:
+        None
     """
     pi.set_servo_pulsewidth(SERVO_PIN, 1250)
     time.sleep(0.4)
@@ -108,9 +118,14 @@ def servo_up(pi):
 def servo_down(pi):
     """
     Move the servo to the "down" position.
-
     Sends the appropriate PWM signal to the configured GPIO pin and waits 0.4s
     for motion to complete.
+
+    Args:
+        pi :
+
+    Returns:
+        None
     """
     pi.set_servo_pulsewidth(SERVO_PIN, 1900)
     time.sleep(0.4)
@@ -118,8 +133,13 @@ def servo_down(pi):
 def servo_neutral(pi):
     """
     Stop sending PWM signals to the servo.
-
     Sets the servo to neutral/off state.
+
+    Args:
+        pi :
+    
+    Returns:
+        None
     """
     pi.set_servo_pulsewidth(SERVO_PIN, 0)
 
@@ -128,9 +148,11 @@ def servo_neutral(pi):
 def wait_for_ok(arduino):
     """
     Wait for a response of 'ok' from the GRBL controller.
-
     Continuously reads serial lines from the Arduino until 'ok' is received.
     Any other responses are printed for informational purposes.
+
+    Args:
+        arduino :
 
     Returns:
         None
@@ -155,6 +177,7 @@ def wait_until_idle(arduino, timeout=60.0):
     found in the response.
 
     Args:
+        arduino : 
         timeout (float, optional): Maximum number of seconds to wait. Raises
             TimeoutError if exceeded. Defaults to 60.0
 
@@ -180,6 +203,15 @@ def wait_until_idle(arduino, timeout=60.0):
 def send_gcode_line(line, arduino, pi, next_line=None):
     """
     Only wait for idle if the NEXT line is a servo command.
+
+    Args:
+        line (str):
+        arduino :
+        pi :
+        next_line (str):
+
+    Returns:
+        None
     """
     line = line.strip()
     if not line:
@@ -212,6 +244,16 @@ def send_gcode_line(line, arduino, pi, next_line=None):
         wait_until_idle(arduino)
 
 def run_game(pi, arduino):
+    """
+    Run a full round of chess configured by user input
+
+    Args:
+        pi :
+        arduino :
+
+    Returns:
+        None
+    """
     arduino.reset_input_buffer()
 
     # choose game mode
@@ -345,7 +387,7 @@ def run_game(pi, arduino):
             move_uci = move_uci[:4]
 
         # plan and execute move
-        move_path = board_item.plan_path(move_uci, promotion=promotion)
+        move_path = board_item.plan_path(move_uci)
         if SHOW_PATHS:
             board_item.display_paths(move_path)
 
@@ -355,7 +397,7 @@ def run_game(pi, arduino):
             next_line = lines[i + 1] if i + 1 < len(lines) else None
             send_gcode_line(line, arduino, pi, next_line)
 
-        board_item.move_piece(move_uci, promotion=promotion)
+        board_item.move_piece(move_uci)
         board_item.display_board()
         turn += 1
         time.sleep(TURN_DELAY)

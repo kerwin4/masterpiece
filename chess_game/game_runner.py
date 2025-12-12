@@ -7,7 +7,7 @@ import chess.engine
 import time
 
 # GAME CONFIGURATION
-STOCKFISH_PATH = "/home/chess/stockfish/stockfish-android-armv8"  # stockfish path for pi: /home/stockfish/stockfish/stockfish-android-armv8 for windows: stockfish-windows-x86-64-avx2.exe
+STOCKFISH_PATH = "stockfish-windows-x86-64-avx2.exe"  # stockfish path for pi: /home/stockfish/stockfish/stockfish-android-armv8 for windows: stockfish-windows-x86-64-avx2.exe
 ENGINE_TIME = 0.1 # seconds for stockfish to choose
 TURN_DELAY = 0 # delay between computer turns
 WHITE_SKILL = 20 # stockfish skill white
@@ -51,13 +51,8 @@ while not board_item.chess_board.is_game_over():
         move_uci = result.move.uci()
         print(f"{color} (Stockfish) plays: {move_uci}") # show stockfish move
 
-        promotion = None # promotion placeholder
-        if len(move_uci) == 5: # detect if a promotion is being made with a 5 character UCI
-            promotion = move_uci[-1]
-            move_uci = move_uci[:4]
-
         # path plan and display computer move
-        move_path = board_item.plan_path(move_uci, promotion=promotion)
+        move_path = board_item.plan_path(move_uci)
         if SHOW_PATHS:
             print(move_path)
             print(f"{color} move path:")
@@ -70,15 +65,10 @@ while not board_item.chess_board.is_game_over():
     else:
         # human move
         move_uci = input("Enter your move (UCI notation like e2e4): ").strip()
-        # determine if a promotion is desired
-        promotion = None
-        if len(move_uci) == 5:  # like e7e8q
-            promotion = move_uci[-1]
-            move_uci = move_uci[:4]
 
     # show the board states post-move
     # make the move
-    board_item.move_piece(move_uci, promotion=promotion)
+    board_item.move_piece(move_uci)
     # visualize
     board_item.display_state()
     board_item.display_nodes()

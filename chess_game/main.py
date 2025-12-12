@@ -6,12 +6,12 @@ def main():
 
     while True:
         run_game(pi, arduino) # play a full game
-
-        again = input("\nStart a new game? (y/n): ").strip().lower()
+        # repeat if desired
+        again = input("\nstart a new game? (y/n): ").strip().lower()
         if again != "y":
             break
 
-    # shutdown everything once the user is done
+    # shutdown everything once done
     shutdown_hardware(pi, arduino)
 
 if __name__ == "__main__":
