@@ -65,9 +65,9 @@ def ask_int(prompt, min_val=1350, max_val=3190):
     Primarily used for determining stockfish ELO.
 
     Args:
-        prompt (str): The message to display to the user
-        min_val (int): Minimum valid value (inclusive) defaults to 1350
-        max_val (int): Maximum valid value (inclusive) defaults to 3190
+        prompt (str): the message to display to the user
+        min_val (int): minimum valid value, defaults to 1350
+        max_val (int): maximum valid value, defaults to 3190
 
     Returns:
         int: The integer entered by the user within the specified range
@@ -86,11 +86,11 @@ def ask_choice(prompt, choices):
     Repeats the prompt until a valid choice from "choices" is entered regardless of letter case
 
     Args:
-        prompt (str): The message to display to the user
-        choices (list[str]): List of valid choices
+        prompt (str): the message to display to the user
+        choices (list[str]): list of valid choices
 
     Returns:
-        str: The choice selected by the user, returned in its original casing
+        str: the choice selected by the user, returned in its original casing
     """
     choices_lower = {c.lower(): c for c in choices} # make everything lowercase
     while True:
@@ -107,7 +107,7 @@ def servo_up(pi):
     for motion to complete.
 
     Args:
-        pi :
+        pi (pigpio.pi): raspberry pi gpio controller for servo control
 
     Returns:
         None
@@ -122,7 +122,7 @@ def servo_down(pi):
     for motion to complete.
 
     Args:
-        pi :
+        pi (pigpio.pi): raspberry pi gpio controller for servo control
 
     Returns:
         None
@@ -136,7 +136,7 @@ def servo_neutral(pi):
     Sets the servo to neutral/off state.
 
     Args:
-        pi :
+        pi (pigpio.pi): raspberry pi gpio controller for servo control
     
     Returns:
         None
@@ -152,7 +152,7 @@ def wait_for_ok(arduino):
     Any other responses are printed for informational purposes.
 
     Args:
-        arduino :
+        arduino (serial.Serial): serial connection to arduino/grbl for gantry control
 
     Returns:
         None
@@ -171,18 +171,14 @@ def wait_for_ok(arduino):
 # we can guarantee the servo moves at the right time
 def wait_until_idle(arduino, timeout=60.0):
     """
-    Wait until the GRBL controller reports that it is idle.
-
-    Polls the controller status with a 0.1s delay between queries until "Idle" is
-    found in the response.
+    Wait until the grbl controller reports that it is idle.
 
     Args:
-        arduino : 
-        timeout (float, optional): Maximum number of seconds to wait. Raises
-            TimeoutError if exceeded. Defaults to 60.0
+        arduino (serial.Serial): serial connection to arduino/grbl for gantry control
+        timeout (float): maximum number of seconds to wait, raises timeout error if exceeded, defaults to 60.0
 
     Raises:
-        TimeoutError: If GRBL does not become idle within "timeout" seconds
+        TimeoutError: if grbl does not become idle within "timeout" seconds
     """
     start_time = time.time() # when the function is called, start a timer
     while True:
@@ -202,13 +198,14 @@ def wait_until_idle(arduino, timeout=60.0):
 # send a single line of gcode from the pi to the arduino function
 def send_gcode_line(line, arduino, pi, next_line=None):
     """
-    Only wait for idle if the NEXT line is a servo command.
+    Send a single line of gcode from the pi to the arduino.
+    If the next line is a servo command, wait for the gantry to become idle before moving on.
 
     Args:
-        line (str):
-        arduino :
-        pi :
-        next_line (str):
+        line (str): the line of gcode to send to grbl
+        pi (pigpio.pi): raspberry pi gpio controller for servo control
+        arduino (serial.Serial): serial connection to arduino/grbl for gantry control
+        next_line (str): the next line of gcode that will be sent to grbl
 
     Returns:
         None
@@ -248,8 +245,8 @@ def run_game(pi, arduino):
     Run a full round of chess configured by user input
 
     Args:
-        pi :
-        arduino :
+        pi (pigpio.pi): raspberry pi gpio controller for servo control
+        arduino (serial.Serial): serial connection to arduino/grbl for gantry control
 
     Returns:
         None
@@ -376,38 +373,39 @@ def run_game(pi, arduino):
         else:
             # human move
             while True:
+                # get input
                 move_uci = input(f"Enter your move for {color} (e.g., e2e4): ").strip()
+                # check if the move is in the correct format
                 if len(move_uci) not in (4, 5):
                     print("Invalid format. Use e2e4 or e7e8q.")
                     continue
                 try:
+                    # pass the move to python chess to see if it can be parsed
                     move = chess.Move.from_uci(move_uci)
                 except ValueError:
                     print("Invalid notation. Try again.")
                     continue
+                # check if the move is legal
                 if move not in board_item.chess_board.legal_moves:
                     print("Illegal move. Try again.")
                     continue
                 break
 
-        # handle promotion
-        promotion = None
-        if len(move_uci) == 5:
-            promotion = move_uci[-1]
-            move_uci = move_uci[:4]
-
         # plan and execute move
         move_path = board_item.plan_path(move_uci)
+        # show the path if desired
         if SHOW_PATHS:
             board_item.display_paths(move_path)
-
+        # make the gcode
         gcode_str = BoardItem.generate_gcode(move_path)
         lines = gcode_str.splitlines()
+        # send the gcode
         for i, line in enumerate(lines):
             next_line = lines[i + 1] if i + 1 < len(lines) else None
             send_gcode_line(line, arduino, pi, next_line)
-
+        # move the piece for internal tracking
         board_item.move_piece(move_uci)
+        # show the board
         board_item.display_board()
         turn += 1
         time.sleep(TURN_DELAY)
@@ -433,6 +431,14 @@ def run_game(pi, arduino):
         print("Board will not be reset.")
 
 def init_hardware():
+    """
+    Initialize all of the necessary processes to run a game on the board.
+
+    Returns:
+        pi (pigpio.pi): raspberry pi gpio controller for servo control
+        arduino (serial.Serial): serial connection to arduino/grbl for gantry control
+    """
+
     start_pigpio_daemon()
     time.sleep(1)
     pi = pigpio.pi()
@@ -446,6 +452,17 @@ def init_hardware():
     return pi, arduino
 
 def shutdown_hardware(pi, arduino):
+    """
+    Close all of the processes that were initialized at the beginning of the game
+
+    Args:
+        pi (pigpio.pi): raspberry pi gpio controller for servo control
+        arduino (serial.Serial): serial connection to arduino/grbl for gantry control
+
+    Returns:
+        None
+    """
+
     arduino.close()
     servo_neutral()
     pi.stop()

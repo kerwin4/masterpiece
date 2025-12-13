@@ -532,12 +532,12 @@ class BoardItem:
 
         - Move to start of each segment with G0 rapid move
         - Raise servo "servo_up"
-        - Follow path using linear moves (G1 X... Y... F50)
+        - Follow path using linear moves including diagonals
         - Lower servo "servo_down"
 
         Args:
             path_seq (list): path sequence from plan_path()
-            node_spacing (float, optional): scale factor converting grid units to real units if that should change on the real board
+            node_spacing (float): scale factor converting grid units to real units if that should change on the real board
 
         Returns:
             str: A multi-line g-code program
