@@ -58,7 +58,7 @@ def stop_pigpio_daemon():
         print(f"error stopping pigpiod: {s_err.decode()}")
 
 # USER INPUT GAME CONFIG
-def ask_int(prompt, min_val=1350, max_val=2850):
+def ask_int(prompt, min_val=1350, max_val=3190):
     """
     Prompt the user to enter an integer within a specified range.
     Repeats the prompt until a valid integer within the provided range is entered.
@@ -67,7 +67,7 @@ def ask_int(prompt, min_val=1350, max_val=2850):
     Args:
         prompt (str): The message to display to the user
         min_val (int): Minimum valid value (inclusive) defaults to 1350
-        max_val (int): Maximum valid value (inclusive) defaults to 2850
+        max_val (int): Maximum valid value (inclusive) defaults to 3190
 
     Returns:
         int: The integer entered by the user within the specified range
@@ -278,16 +278,16 @@ def run_game(pi, arduino):
         AUTO_PLAY = True
         HUMAN_PLAYS_WHITE = False
         print("\nComputer vs Computer selected.")
-        WHITE_SKILL = ask_int("Enter White engine skill level (1350-2850): ")
-        BLACK_SKILL = ask_int("Enter Black engine skill level (1350-2850): ")
+        WHITE_SKILL = ask_int("Enter White engine skill level (1350-3190): ")
+        BLACK_SKILL = ask_int("Enter Black engine skill level (1350-3190): ")
     elif mode == "1":
         print("\nHuman vs Computer selected.")
         color_choice = ask_choice("Do you want to play as White or Black? ", ["White", "Black"])
         HUMAN_PLAYS_WHITE = (color_choice == "White")
         if HUMAN_PLAYS_WHITE:
-            BLACK_SKILL = ask_int("Enter Computer (Black) skill level (1350-2850): ")
+            BLACK_SKILL = ask_int("Enter Computer (Black) skill level (1350-3190): ")
         else:
-            WHITE_SKILL = ask_int("Enter Computer (White) skill level (1350-2850): ")
+            WHITE_SKILL = ask_int("Enter Computer (White) skill level (1350-3190): ")
     else:
         print("\nHuman vs Human selected.")
         HUMAN_VS_HUMAN = True

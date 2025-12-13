@@ -681,3 +681,19 @@ class BoardItem:
         # Generate G-code for all moves
         gcode = self.generate_gcode([("move", path) for path in reset_paths])
         return gcode
+
+class DeterministicGameMode:
+    def __init__(self, board_item):
+        self.board = board_item
+        self.moves = ["e2e4", "d7d5", "e4d5", "c7c5", "d5c6", "g1f3", "b8c6", "f1c4", "g8f6", "e1g1", "h7h5", "c6c7", "c7c8q", "d1h5"] 
+        self.index = 0
+
+    def play_next_move(self):
+        if self.index >= len(self.moves):
+            return False  # game over
+        uci_move = self.moves[self.index]
+        promotion = uci_move[-1] if uci_move[-1] in ["q","r","b","n"] else None
+        move_str = uci_move[:-1] if promotion else uci_move
+        self.board.move_piece(move_str, promotion)
+        self.index += 1
+        return True
