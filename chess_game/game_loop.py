@@ -8,7 +8,7 @@ import time
 import serial
 import pigpio
 from subprocess import Popen, PIPE
-from board_item import BoardItem, DeterministicGameMode
+from board_item import BoardItem, PremadeGameMode
 
 # GENERAL CONFIGURATION
 STOCKFISH_PATH = "/home/chess/stockfish/stockfish-android-armv8" # path to stockfish engine, for pi: /home/chess/stockfish/stockfish-android-armv8
@@ -288,7 +288,7 @@ def run_game(pi, arduino):
         else:
             WHITE_SKILL = ask_int("Enter Computer (White) skill level (1350-3190): ")
     elif mode == "4":
-        game_mode = DeterministicGameMode(board_item, arduino, pi)
+        game_mode = PremadeGameMode(board_item, arduino, pi)
         turn = 1
         # start gantry setup
         servo_down(pi)

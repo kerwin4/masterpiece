@@ -41,7 +41,7 @@ class BoardItem:
         update_from_chess():
             regenerate both state and node grids from the current chess position
 
-        move_piece(uci_move, promotion=None):
+        move_piece(uci_move):
             execute a move on the logical chessboard and update all internal
             representations
 
@@ -54,7 +54,7 @@ class BoardItem:
         display_nodes():
             print the 19×23 node grid
 
-        plan_path(uci_move, promotion=None):
+        plan_path(uci_move):
             compute a star path planning steps for the move, including captures,
             castling, and promotions
 
@@ -287,12 +287,13 @@ class BoardItem:
 
         Args:
             uci_move (str): 4 character UCI chess move
-            promotion (str): Promotion letter ('Q', 'R', 'B', 'N')
+            promotion (str): promotion letter
 
         Returns:
             list[tuple[str, list[tuple[int, int]]]]
 
-                A sequence of labeled steps:
+                a sequence of labeled steps like,
+
                 [
                     ("move", [(r, c), ...]),
                     ("capture", [...]),
@@ -303,7 +304,7 @@ class BoardItem:
                     ("castle_rook", [...])
                 ]
 
-                Each list contains node-grid coordinates representing the path 
+                each list contains node-grid coordinates representing the path 
                 with the string corresponding to the type of move occuring
         """
         promotion = None
@@ -540,7 +541,7 @@ class BoardItem:
             node_spacing (float): scale factor converting grid units to real units if that should change on the real board
 
         Returns:
-            str: A multi-line g-code program
+            str: a multi-line g-code program
         """
         # storage for gcode instructions
         lines = []
@@ -570,7 +571,7 @@ class BoardItem:
     # board reset helper function
     def _direct_path(self, start_node, end_node):
         """
-        Compute a direct path from start_node to end_node using BFS/A*-like search on node_grid.
+        Compute a direct path from start_node to end_node search on node_grid.
         Avoids obstacles (non-empty squares) and returns a list of node coordinates.
         
         Args:
@@ -682,8 +683,40 @@ class BoardItem:
         gcode = self.generate_gcode([("move", path) for path in reset_paths])
         return gcode
 
-class DeterministicGameMode:
+class PremadeGameMode:
+    """
+    Premade game mode that plays a fixed, pre-defined sequence of legal
+    chess moves.
+
+    This mode is intended for demonstrations, testing, and validation of the
+    physical gantry chess board. Each move is:
+    - Planned as a physical path
+    - Converted to G-code
+    - Executed on the hardware
+    - Applied to the internal python-chess board state
+
+    The game ends automatically after the final move in the predefined list,
+    allowing the normal game-over and board reset logic to run.
+
+    Methods:
+        play_next_move(send_gcode_line):
+            communicates pre-sequenced moves to the arduino for execution
+    """
     def __init__(self, board_item, arduino, pi, show_paths=True):
+        """
+        Initializes the premade game mode.
+
+        Args:
+            board_item (BoardItem): the combined logical and physical chessboard controller responsible 
+            for path planning, move execution, and state tracking
+            arduino (serial.Serial): serial connection used to send gcode commands to the gantry controller
+            pi (pigpio.pi): pigpio instance used for gpio and timing coordination
+            show_paths (bool): if true, visualizes planned movement
+            paths before executing each move, defaults to true
+
+        Returns:
+            None
+        """
         self.board = board_item
         self.arduino = arduino
         self.pi = pi
@@ -718,26 +751,40 @@ class DeterministicGameMode:
             "h2h3",
             "c2c1q"
         ]
-
         self.index = 0
 
     def play_next_move(self, send_gcode_line):
+        """
+        Executes the next move in the predefined move list.
+
+        Args:
+            send_gcode_line (callable): function used to send a single line of
+                gcode to the gantry controller, expected signature:
+                send_gcode_line(line, arduino, pi, next_line)
+
+        Returns:
+            bool: True if a move was executed successfully
+            False if no moves remain and the game is over
+        """
         if self.index >= len(self.moves):
             return False  # game over
 
         uci_move = self.moves[self.index]
 
-        # Plan the move path and generate G-code
+        # plan the move path
         move_path = self.board.plan_path(uci_move)
+        # display the path if desired
         if self.show_paths:
             self.board.display_paths(move_path)
+        # make the gcode
         gcode_str = BoardItem.generate_gcode(move_path)
+        # send the lines to the arduino one at a time
         lines = gcode_str.splitlines()
         for i, line in enumerate(lines):
             next_line = lines[i + 1] if i + 1 < len(lines) else None
             send_gcode_line(line, self.arduino, self.pi, next_line)
 
-        # Update internal board and tracking
+        # update internal board and tracking
         self.board.move_piece(uci_move)
         self.board.display_board()
 
