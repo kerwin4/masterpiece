@@ -252,6 +252,7 @@ def run_game(pi, arduino):
         None
     """
     arduino.reset_input_buffer()
+    board_item = BoardItem()
 
     # choose game mode
     mode = ask_choice(
@@ -287,9 +288,17 @@ def run_game(pi, arduino):
         else:
             WHITE_SKILL = ask_int("Enter Computer (White) skill level (1350-3190): ")
     elif mode == "4":
-        game_mode = DeterministicGameMode(board_item)
+        game_mode = DeterministicGameMode(board_item, arduino, pi)
         turn = 1
-        while game_mode.play_next_move():
+        # start gantry setup
+        servo_down(pi)
+        arduino.write(b"$H\n")
+        wait_for_ok(arduino)
+        arduino.write(b"G92 X0 Y0\n")
+        wait_for_ok(arduino)
+        arduino.write(b"G20 G90\n")
+        wait_for_ok(arduino)
+        while game_mode.play_next_move(send_gcode_line):
             print(f"[{turn}] Deterministic move played")
             board_item.display_board()
             turn += 1
@@ -316,8 +325,7 @@ def run_game(pi, arduino):
     arduino.write(b"G20 G90\n")
     wait_for_ok(arduino)
 
-    # initialize board
-    board_item = BoardItem()
+    # display start board
     board_item.display_state()
 
     # set up chess engines if needed

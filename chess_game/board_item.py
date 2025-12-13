@@ -683,17 +683,64 @@ class BoardItem:
         return gcode
 
 class DeterministicGameMode:
-    def __init__(self, board_item):
+    def __init__(self, board_item, arduino, pi, show_paths=True):
         self.board = board_item
-        self.moves = ["e2e4", "d7d5", "e4d5", "c7c5", "d5c6", "g1f3", "b8c6", "f1c4", "g8f6", "e1g1", "h7h5", "c6c7", "c7c8q", "d1h5"] 
+        self.arduino = arduino
+        self.pi = pi
+        self.show_paths = show_paths
+        self.moves = [
+            "e2e4",
+            "e7e5",
+            "d2d4",
+            "e5d4",
+            "c2c4",
+            "d4c3",
+            "b2b4",
+            "a7a5",
+            "b4a5",
+            "a8a5",
+            "d1a4",
+            "a5a4",
+            "c1a3",
+            "a4a3",
+            "e4e5",
+            "f8d6",
+            "f2f4",
+            "g8h6",
+            "f4f5",
+            "e8g8",
+            "f5f6",
+            "c3c2",
+            "b1c3",
+            "a3b3",
+            "c3b1",
+            "b3b2",
+            "h2h3",
+            "c2c1q"
+        ]
+
         self.index = 0
 
-    def play_next_move(self):
+    def play_next_move(self, send_gcode_line):
         if self.index >= len(self.moves):
             return False  # game over
+
         uci_move = self.moves[self.index]
-        promotion = uci_move[-1] if uci_move[-1] in ["q","r","b","n"] else None
-        move_str = uci_move[:-1] if promotion else uci_move
-        self.board.move_piece(move_str, promotion)
+
+        # Plan the move path and generate G-code
+        move_path = self.board.plan_path(uci_move)
+        if self.show_paths:
+            self.board.display_paths(move_path)
+        gcode_str = BoardItem.generate_gcode(move_path)
+        lines = gcode_str.splitlines()
+        for i, line in enumerate(lines):
+            next_line = lines[i + 1] if i + 1 < len(lines) else None
+            send_gcode_line(line, self.arduino, self.pi, next_line)
+
+        # Update internal board and tracking
+        self.board.move_piece(uci_move)
+        self.board.display_board()
+
         self.index += 1
         return True
+
