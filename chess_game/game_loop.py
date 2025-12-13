@@ -8,7 +8,7 @@ import time
 import serial
 import pigpio
 from subprocess import Popen, PIPE
-from board_item import BoardItem
+from board_item import BoardItem, DeterministicGameMode
 
 # GENERAL CONFIGURATION
 STOCKFISH_PATH = "/home/chess/stockfish/stockfish-android-armv8" # path to stockfish engine, for pi: /home/chess/stockfish/stockfish-android-armv8
@@ -262,8 +262,9 @@ def run_game(pi, arduino):
         "  1 = Human vs Computer\n"
         "  2 = Computer vs Computer\n"
         "  3 = Human vs Human\n"
+        "  4 = Deterministic short game\n"
         "Enter choice: ",
-        ["1", "2", "3"]
+        ["1", "2", "3", "4"]
     )
 
     # configuration flags
@@ -288,6 +289,15 @@ def run_game(pi, arduino):
             BLACK_SKILL = ask_int("Enter Computer (Black) skill level (1350-3190): ")
         else:
             WHITE_SKILL = ask_int("Enter Computer (White) skill level (1350-3190): ")
+    elif mode == "4":
+        game_mode = DeterministicGameMode(board_item)
+        turn = 1
+        while game_mode.play_next_move():
+            print(f"[{turn}] Deterministic move played")
+            board_item.display_board()
+            turn += 1
+            time.sleep(TURN_DELAY)
+
     else:
         print("\nHuman vs Human selected.")
         HUMAN_VS_HUMAN = True

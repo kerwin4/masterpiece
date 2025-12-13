@@ -620,9 +620,9 @@ class BoardItem:
 
         # --- Define starting positions, including extra nodes for R, N, B, Q ---
         starting_positions = {
-            'R': [(8,2), (8,9), (3,0), (11,0)],  # example extra nodes
-            'N': [(8,3), (8,8), (2,0), (10,0)],  # adjust as needed
-            'B': [(8,4), (8,7), (0,0), (9,0)],
+            'R': [(8,2), (8,9), (2,0), (9,0)],  # example extra nodes
+            'N': [(8,3), (8,8), (1,0), (8,0)],  # adjust as needed
+            'B': [(8,4), (8,7), (0,0), (7,0)],
             'Q': [(8,5), (3,0), (4,0), (5,0), (6,0)],
             'K': [(8,6)],
             'P': [(7,c) for c in range(2,9)],
@@ -653,7 +653,7 @@ class BoardItem:
         # --- Move misplaced pieces to empty valid squares ---
         for piece_type, valid_positions in starting_positions.items():
             positions_to_move = [pos for pos in zip(*np.where(temp_board == piece_type)) if pos not in locked_squares]
-            empty_targets = [sq for sq in valid_positions if temp_board[sq] == '.' and sq not in locked_squares]
+            empty_targets = [sq for sq in valid_positions if temp_board[sq[0], sq[1]] == '.' and sq not in locked_squares]
 
             for piece_pos, target in zip(positions_to_move, empty_targets):
                 # Handle blocker if target is occupied
