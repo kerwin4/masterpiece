@@ -608,44 +608,33 @@ class BoardItem:
         """
         Reset the board to the starting state.
 
-        - Moves all normal pieces to their starting squares.
-        - Moves promotion pieces back to promotion lanes if needed.
-        - Leaves capture squares empty.
-        - Resolves blocking pieces by temporarily moving them to free squares.
-        - Never moves a promotion piece that is already in the correct promotion lane.
-        - Updates internal state and node grid after each move to prevent collisions.
-
-        Returns:
-            str: G-code instructions to reset the board
+        - Any piece already in a valid node (starting or extra nodes) is left untouched.
+        - Misplaced pieces are moved to empty valid nodes.
+        - Handles blockers by moving them to free squares.
+        - Updates temp_board and node_grid.
+        - Returns G-code for the moves.
         """
-        # Starting board positions by piece type
-        starting_positions = {
-            'R': [(8,2), (8,9)], 'N': [(8,3), (8,8)], 'B': [(8,4), (8,7)],
-            'Q': [(8,5)], 'K': [(8,6)], 'P': [(7,c) for c in range(2,10)],
-            'r': [(1,2), (1,9)], 'n': [(1,3), (1,8)], 'b': [(1,4), (1,7)],
-            'q': [(1,5)], 'k': [(1,6)], 'p': [(2,c) for c in range(2,10)]
-        }
-
-        # Promotion nodes in node coordinates (19x23)
-        white_promo_nodes = [(i*2, 0*2) for i in range(len(self.white_promos))]
-        black_promo_nodes = [(i*2, 11*2) for i in range(len(self.black_promos))]
-
         temp_board = self.state_board.copy()
         reset_paths = []
         locked_squares = set()
 
-        # 1️⃣ Lock promotion pieces already in correct squares
-        # use a fresh reference to check against updated self.white_promos / self.black_promos
-        for i, p in enumerate(self.white_promos):
-            promo_square = (white_promo_nodes[i][0]//2, white_promo_nodes[i][1]//2)
-            if temp_board[promo_square] == p:
-                locked_squares.add(promo_square)
-        for i, p in enumerate(self.black_promos):
-            promo_square = (black_promo_nodes[i][0]//2, black_promo_nodes[i][1]//2)
-            if temp_board[promo_square] == p:
-                locked_squares.add(promo_square)
+        # --- Define starting positions, including extra nodes for R, N, B, Q ---
+        starting_positions = {
+            'R': [(8,2), (8,9), (3,0), (11,0)],  # example extra nodes
+            'N': [(8,3), (8,8), (2,0), (10,0)],  # adjust as needed
+            'B': [(8,4), (8,7), (0,0), (9,0)],
+            'Q': [(8,5), (3,0), (4,0), (5,0), (6,0)],
+            'K': [(8,6)],
+            'P': [(7,c) for c in range(2,9)],
+            'r': [(1,2), (1,9), (2,11), (9,11)],
+            'n': [(1,3), (1,8), (1,11), (8,11)],
+            'b': [(1,4), (1,7), (0,11), (7,11)],
+            'q': [(1,5), (3,11), (4,11), (5,11), (6,11)],
+            'k': [(1,6)],
+            'p': [(2,c) for c in range(2,9)]
+        }
 
-        # Helper to pick a random free square (not starting, promotion, or capture)
+        # Helper: pick a random free square
         def random_free_square():
             free_squares = [
                 (r,c) for r in range(self.state_rows)
@@ -654,68 +643,41 @@ class BoardItem:
             ]
             return random.choice(free_squares) if free_squares else None
 
-        # 2️⃣ Move all normal pieces to starting squares
-        for piece_type, targets in starting_positions.items():
-            current_positions = list(zip(*np.where(temp_board == piece_type)))
-            current_positions = [pos for pos in current_positions if pos not in locked_squares]
+        # --- Lock pieces already in any valid square ---
+        for piece_type, valid_positions in starting_positions.items():
+            positions_on_board = list(zip(*np.where(temp_board == piece_type)))
+            for pos in positions_on_board:
+                if pos in valid_positions:
+                    locked_squares.add(pos)
 
-            for target in targets:
-                if target in locked_squares:
-                    continue
-                if not current_positions:
-                    break
+        # --- Move misplaced pieces to empty valid squares ---
+        for piece_type, valid_positions in starting_positions.items():
+            positions_to_move = [pos for pos in zip(*np.where(temp_board == piece_type)) if pos not in locked_squares]
+            empty_targets = [sq for sq in valid_positions if temp_board[sq] == '.' and sq not in locked_squares]
 
-                # move blocker first if necessary
+            for piece_pos, target in zip(positions_to_move, empty_targets):
+                # Handle blocker if target is occupied
                 if temp_board[target] != '.':
-                    blocking_piece = temp_board[target]
+                    blocker = temp_board[target]
                     free_sq = random_free_square()
                     if free_sq:
-                        start_node = (target[0]*2, target[1]*2)
-                        end_node = (free_sq[0]*2, free_sq[1]*2)
-                        reset_paths.append(self._direct_path(start_node, end_node))
-                        temp_board[free_sq] = blocking_piece
+                        b_start = (target[0]*2, target[1]*2)
+                        b_end = (free_sq[0]*2, free_sq[1]*2)
+                        reset_paths.append(self._direct_path(b_start, b_end))
+                        temp_board[free_sq] = blocker
                         temp_board[target] = '.'
-                        self.node_grid[start_node[0], start_node[1]] = '.'
-                        self.node_grid[end_node[0], end_node[1]] = blocking_piece
+                        self.node_grid[b_start[0]:b_start[0]+1, b_start[1]:b_start[1]+1] = '.'
+                        self.node_grid[b_end[0]:b_end[0]+1, b_end[1]:b_end[1]+1] = blocker
 
-                # move piece to target
-                piece_pos = current_positions.pop(0)
+                # Move the piece to target
                 start_node = (piece_pos[0]*2, piece_pos[1]*2)
                 end_node = (target[0]*2, target[1]*2)
                 reset_paths.append(self._direct_path(start_node, end_node))
-
                 temp_board[target] = piece_type
                 temp_board[piece_pos] = '.'
-                self.node_grid[start_node[0], start_node[1]] = '.'
-                self.node_grid[end_node[0], end_node[1]] = piece_type
+                self.node_grid[start_node[0]:start_node[0]+1, start_node[1]:start_node[1]+1] = '.'
+                self.node_grid[end_node[0]:end_node[0]+1, end_node[1]:end_node[1]+1] = piece_type
 
-        # 3️⃣ Reset promotion lanes
-        for i, p in enumerate(self.white_promos):
-            promo_square = (white_promo_nodes[i][0]//2, white_promo_nodes[i][1]//2)
-            pos = np.where(temp_board == p)
-            if len(pos[0]) > 0:
-                start_node = (pos[0][0]*2, pos[1][0]*2)
-                end_node = (promo_square[0]*2, promo_square[1]*2)
-                if temp_board[promo_square] != p:
-                    reset_paths.append(self._direct_path(start_node, end_node))
-                    temp_board[promo_square] = p
-                    temp_board[start_node[0], start_node[1]] = '.'
-                    self.node_grid[start_node[0]*2, start_node[1]*2] = '.'
-                    self.node_grid[end_node[0], end_node[1]] = p
-
-        for i, p in enumerate(self.black_promos):
-            promo_square = (black_promo_nodes[i][0]//2, black_promo_nodes[i][1]//2)
-            pos = np.where(temp_board == p)
-            if len(pos[0]) > 0:
-                start_node = (pos[0][0]*2, pos[1][0]*2)
-                end_node = (promo_square[0]*2, promo_square[1]*2)
-                if temp_board[promo_square] != p:
-                    reset_paths.append(self._direct_path(start_node, end_node))
-                    temp_board[promo_square] = p
-                    temp_board[start_node[0], start_node[1]] = '.'
-                    self.node_grid[start_node[0]*2, start_node[1]*2] = '.'
-                    self.node_grid[end_node[0], end_node[1]] = p
-
-        # Generate G-code
+        # Generate G-code for all moves
         gcode = self.generate_gcode([("move", path) for path in reset_paths])
         return gcode
