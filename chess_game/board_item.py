@@ -609,79 +609,106 @@ class BoardItem:
         """
         Reset the board to the starting state.
 
-        - Any piece already in a valid node (starting or extra nodes) is left untouched.
-        - Misplaced pieces are moved to empty valid nodes.
-        - Handles blockers by moving them to free squares.
-        - Updates temp_board and node_grid.
-        - Returns G-code for the moves.
+        Strategy:
+        1. Lock pieces already in correct starting squares.
+        2. Evict any wrong piece occupying a starting square.
+        3. Move remaining misplaced pieces into their starting squares.
+        4. Update temp_board and node_grid.
+        5. Return G-code for all moves.
         """
+        import random
+        import numpy as np
+
         temp_board = self.state_board.copy()
         reset_paths = []
         locked_squares = set()
 
-        # --- Define starting positions, including extra nodes for R, N, B, Q ---
+        # --- Define starting positions, including extra nodes ---
         starting_positions = {
-            'R': [(8,2), (8,9), (2,0), (9,0)],  # example extra nodes
-            'N': [(8,3), (8,8), (1,0), (8,0)],  # adjust as needed
+            'R': [(8,2), (8,9), (2,0), (9,0)],
+            'N': [(8,3), (8,8), (1,0), (8,0)],
             'B': [(8,4), (8,7), (0,0), (7,0)],
             'Q': [(8,5), (3,0), (4,0), (5,0), (6,0)],
             'K': [(8,6)],
             'P': [(7,c) for c in range(2,9)],
+
             'r': [(1,2), (1,9), (2,11), (9,11)],
             'n': [(1,3), (1,8), (1,11), (8,11)],
             'b': [(1,4), (1,7), (0,11), (7,11)],
             'q': [(1,5), (3,11), (4,11), (5,11), (6,11)],
             'k': [(1,6)],
-            'p': [(2,c) for c in range(2,9)]
+            'p': [(2,c) for c in range(2,9)],
         }
 
-        # Helper: pick a random free square
-        def random_free_square():
-            free_squares = [
-                (r,c) for r in range(self.state_rows)
-                    for c in range(self.state_cols)
-                    if temp_board[r,c] == '.' and (r,c) not in locked_squares and c not in (0,11)
-            ]
-            return random.choice(free_squares) if free_squares else None
+        # --- Helper: random free square (not a starting square) ---
+        all_starting = {sq for v in starting_positions.values() for sq in v}
 
-        # --- Lock pieces already in any valid square ---
-        for piece_type, valid_positions in starting_positions.items():
-            positions_on_board = list(zip(*np.where(temp_board == piece_type)))
-            for pos in positions_on_board:
-                if pos in valid_positions:
+        def random_free_square():
+            free = [
+                (r, c)
+                for r in range(self.state_rows)
+                for c in range(self.state_cols)
+                if temp_board[r, c] == '.'
+                and (r, c) not in locked_squares
+                and (r, c) not in all_starting
+                and c not in (0, 11)
+            ]
+            return random.choice(free) if free else None
+
+        # --- Phase 1: lock already-correct pieces ---
+        for piece, valid_sqs in starting_positions.items():
+            for pos in zip(*np.where(temp_board == piece)):
+                if pos in valid_sqs:
                     locked_squares.add(pos)
 
-        # --- Move misplaced pieces to empty valid squares ---
-        for piece_type, valid_positions in starting_positions.items():
-            positions_to_move = [pos for pos in zip(*np.where(temp_board == piece_type)) if pos not in locked_squares]
-            empty_targets = [sq for sq in valid_positions if temp_board[sq[0], sq[1]] == '.' and sq not in locked_squares]
-
-            for piece_pos, target in zip(positions_to_move, empty_targets):
-                # Handle blocker if target is occupied
-                if temp_board[target] != '.':
-                    blocker = temp_board[target]
+        # --- Phase 2: evict wrong pieces from starting squares ---
+        for piece, valid_sqs in starting_positions.items():
+            for sq in valid_sqs:
+                occupant = temp_board[sq]
+                if occupant != '.' and occupant != piece:
                     free_sq = random_free_square()
-                    if free_sq:
-                        b_start = (target[0]*2, target[1]*2)
-                        b_end = (free_sq[0]*2, free_sq[1]*2)
-                        reset_paths.append(self._direct_path(b_start, b_end))
-                        temp_board[free_sq] = blocker
-                        temp_board[target] = '.'
-                        self.node_grid[b_start[0]:b_start[0]+1, b_start[1]:b_start[1]+1] = '.'
-                        self.node_grid[b_end[0]:b_end[0]+1, b_end[1]:b_end[1]+1] = blocker
+                    if free_sq is None:
+                        continue  # should be extremely rare
 
-                # Move the piece to target
+                    start_node = (sq[0]*2, sq[1]*2)
+                    end_node   = (free_sq[0]*2, free_sq[1]*2)
+
+                    reset_paths.append(self._direct_path(start_node, end_node))
+
+                    temp_board[free_sq] = occupant
+                    temp_board[sq] = '.'
+                    self.node_grid[start_node[0], start_node[1]] = '.'
+                    self.node_grid[end_node[0], end_node[1]] = occupant
+
+        # --- Phase 3: place correct pieces into starting squares ---
+        for piece, valid_sqs in starting_positions.items():
+            current_positions = [
+                pos for pos in zip(*np.where(temp_board == piece))
+                if pos not in locked_squares
+            ]
+
+            target_sqs = [
+                sq for sq in valid_sqs
+                if temp_board[sq] == '.'
+            ]
+
+            for piece_pos, target in zip(current_positions, target_sqs):
                 start_node = (piece_pos[0]*2, piece_pos[1]*2)
-                end_node = (target[0]*2, target[1]*2)
-                reset_paths.append(self._direct_path(start_node, end_node))
-                temp_board[target] = piece_type
-                temp_board[piece_pos] = '.'
-                self.node_grid[start_node[0]:start_node[0]+1, start_node[1]:start_node[1]+1] = '.'
-                self.node_grid[end_node[0]:end_node[0]+1, end_node[1]:end_node[1]+1] = piece_type
+                end_node   = (target[0]*2, target[1]*2)
 
-        # Generate G-code for all moves
+                reset_paths.append(self._direct_path(start_node, end_node))
+
+                temp_board[target] = piece
+                temp_board[piece_pos] = '.'
+                self.node_grid[start_node[0], start_node[1]] = '.'
+                self.node_grid[end_node[0], end_node[1]] = piece
+
+                locked_squares.add(target)
+
+        # --- Generate G-code ---
         gcode = self.generate_gcode([("move", path) for path in reset_paths])
         return gcode
+
 
 class PremadeGameMode:
     """
