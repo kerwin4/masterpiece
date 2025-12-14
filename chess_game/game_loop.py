@@ -472,6 +472,6 @@ def shutdown_hardware(pi, arduino):
     """
 
     arduino.close()
-    servo_neutral()
+    servo_neutral(pi)
     pi.stop()
     stop_pigpio_daemon()
