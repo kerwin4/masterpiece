@@ -1,5 +1,5 @@
 """
-Create a class to control and visualize the behavior of a physical human vs computer chess board.
+create a class to control and visualize the behavior of a physical human vs computer chess board
 """
 
 import chess
@@ -10,17 +10,17 @@ from collections import deque
 
 class BoardItem:
     """
-    Combined logical and physical chessboard representation for a robot-controlled
-    chess system.
+    combined logical and physical chessboard representation for a robot-controlled
+    chess system
 
-    This class handles
+    this class handles
     - a standard 8×8 python-chess board representation
     - a 10×12 physical state grid representing pieces, capture slots, and promotions
     - a 19×23 node grid used for a star move pathfinding
     - capture tracking for both sides
     - promotion slot management
     - full a star path planning for normal moves, captures, castling, en passant, and promotions
-    - G-code generation for robotic movement
+    - gcode generation for gantry movement
 
     Attributes:
         chess_board (chess.Board): the logical chessboard storing current game state from the python chess library
@@ -42,8 +42,7 @@ class BoardItem:
             regenerate both state and node grids from the current chess position
 
         move_piece(uci_move):
-            execute a move on the logical chessboard and update all internal
-            representations
+            execute a move on the logical chessboard and update all internal representations
 
         display_board():
             print the 8×8 python-chess board
@@ -55,18 +54,22 @@ class BoardItem:
             print the 19×23 node grid
 
         plan_path(uci_move):
-            compute a star path planning steps for the move, including captures,
-            castling, and promotions
+            compute a star path planning steps for the move, including captures, castling, and promotions
 
         display_paths(path_seq):
             visualize planned a star paths by overlaying markers on the node grid
 
         generate_gcode(path_seq, node_spacing=1.0):
-            convert a path sequence into a formatted G-code program suitable for
-            the gantry
+            convert a path sequence into a formatted G-code program suitable for the gantry
     """
 
     def __init__(self):
+        """
+        initialize the instance attributes for a chess game
+
+        Returns:
+            None
+        """
         # python-chess board (8x8)
         self.chess_board = chess.Board()
 
@@ -80,7 +83,7 @@ class BoardItem:
         self.node_cols = 23
         self.node_grid = np.full((self.node_rows, self.node_cols), '.', dtype=object)
 
-        # pre-allocated capture square indices
+        # preallocated capture square indices
         self.black_captures = [(3,1),(2,1),(1,1),(0,1),(0,2),(0,3),(0,4),(0,5),
                                (0,6),(0,7),(0,8),(0,9),(0,10),(1,10),(2,10),(3,10)]
         self.white_captures = [(6,1),(7,1),(8,1),(9,1),(9,2),(9,3),(9,4),(9,5),
@@ -101,7 +104,7 @@ class BoardItem:
     # set up the state board with all piece locations given the 8x8 chess board
     def _populate_state_board(self):
         """
-        Populate or rebuild the 10×12 physical state board.
+        populate or rebuild the 10×12 physical state board
 
         - maps the 8×8 python-chess board into rows 1–8, columns 2–9
         - inserts promotion indicators in columns 0 (white) and 11 (black)
@@ -156,11 +159,10 @@ class BoardItem:
     # set up the node representation by spacing out the state board
     def _populate_node_grid(self):
         """
-        Populate or rebuild the 19×23 node grid used for pathfinding.
-
-        Each cell in the 10×12 state board maps to coordinates:
-        (row * 2, col * 2) in the node grid. Newly created travel
-        indices marked with periods.
+        populate or rebuild the 19×23 node grid used for pathfinding
+        each cell in the 10×12 state board maps to coordinates:
+        (row * 2, col * 2) in the node grid
+        newly created travel indices marked with periods
 
         Returns:
             None
@@ -178,7 +180,7 @@ class BoardItem:
     # helper function to update the visualizations
     def update_from_chess(self):
         """
-        Update the state board and node grid based on the current game progression.
+        update the state board and node grid based on the current game progression
 
         Returns:
             None
@@ -189,11 +191,11 @@ class BoardItem:
     # move a piece and update all of the visualizations
     def move_piece(self, uci_move):
         """
-        Execute a chess move on the logical board and update internal grids.
-        Handles captures, promotions, castling, and en passant.
+        execute a chess move on the logical board and update internal grids
+        handles captures, promotions, castling, and en passant
 
         Args:
-            uci_move (str): 4 character UCI chess move
+            uci_move (str): 4 character uci chess move
         """
         promotion = None
         # get promotion piece if included
@@ -232,7 +234,6 @@ class BoardItem:
             promo_char = promotion.upper()
             # push the promotion move to python chess
             self.chess_board.push(chess.Move(move.from_square, move.to_square, promotion=promo_map[promo_char]))
-
             promo_list = self.white_promos if moving_piece.color == chess.WHITE else self.black_promos
             for i,p in enumerate(promo_list):
                 if p.upper() == promo_char:
@@ -249,7 +250,7 @@ class BoardItem:
     # visualize boards
     def display_board(self):
         """
-        Print the current 8×8 python-chess board.
+        print the current 8×8 python-chess board
 
         Returns:
             None
@@ -258,7 +259,7 @@ class BoardItem:
 
     def display_state(self):
         """
-        Print the 10×12 state board.
+        print the 10×12 state board
 
         Returns:
             None
@@ -270,7 +271,7 @@ class BoardItem:
 
     def display_nodes(self):
         """
-        Print the 19×23 node grid.
+        print the 19×23 node grid
 
         Returns:
             None
@@ -283,16 +284,16 @@ class BoardItem:
     # a star path planning
     def plan_path(self, uci_move):
         """
-        Plan an a star navigation path for executing a chess move.
+        plan an a star navigation path for executing a chess move
 
         Args:
-            uci_move (str): 4 character UCI chess move
+            uci_move (str): 4 character uci chess move
             promotion (str): promotion letter
 
         Returns:
             list[tuple[str, list[tuple[int, int]]]]
 
-                a sequence of labeled steps like,
+                a sequence of labeled steps like
 
                 [
                     ("move", [(r, c), ...]),
@@ -331,33 +332,77 @@ class BoardItem:
 
         # helper functions for pathfinding
         def neighbors(r, c, goal):
-            result = []
+            """
+            determine the neighboring nodes to a given nodes that are valid to move to
+            
+            Args:
+                r (int): the row index of the current node
+                c (int): the column index of the current node
+                goal (tuple[int,int]): the indices of the goal node
+
+            Returns:
+                list[tuple[int,int]]: a list of the valid neighboring nodes to move to
+            """
+            # create placeholder list for valid node moves
+            valid = []
+            # check all 8 surrounding nodes to the current node
             for dr, dc in [(-1,0),(1,0),(0,-1),(0,1),(-1,-1),(-1,1),(1,-1),(1,1)]:
+                # check one neighbor at a time
                 nr, nc = r + dr, c + dc
+                # ensure we are within the board range
                 if 0 <= nr < self.node_rows and 0 <= nc < self.node_cols:
+                    # get the status of the node from internal tracking
                     cell = self.node_grid[nr, nc]
+                    # if the node is empty, an empty capture space, or the goal space, it is a valid move
                     if cell == '.' or (isinstance(cell, str) and cell.isdigit()) or (nr,nc) == goal:
+                        # extra conditions for diagonal neighbors
                         if abs(dr) == 1 and abs(dc) == 1:
                             blocked = False
                             for sr2 in [r, nr]:
                                 for sc2 in [c, nc]:
+                                    # check the 2 orthogonal neighbors and if either contains a piece then that diagonal neighbor is not allowed
                                     if (sr2, sc2) != (r, c) and self.node_grid[sr2, sc2] not in ('.', str(sr2*sc2), self.node_grid[nr,nc]):
                                         blocked = True
+                            # skip to the next loop if it's blocked
                             if blocked:
                                 continue
-                        result.append((nr, nc))
-            return result
+                        # if the neighbor passes all checks, add it to the valid list
+                        valid.append((nr, nc))
+            return valid
 
         def man_dist(a, b):
+            """
+            compute the manhattan distance between two grid coordinates
+            manhattan distance goes along the edges of the triangle rather than the hypoteneuse
+
+            Args:
+                a (tuple[int, int]): first coordinate as (row, col)
+                b (tuple[int, int]): second coordinate as (row, col)
+
+            Returns:
+                int: manhattan distance between a and b
+            """
             return abs(a[0]-b[0]) + abs(a[1]-b[1])
 
         def astar(start, goal):
+            """
+            find a shortest path between two nodes using the a star algorithm
+
+            Args:
+                start (tuple[int, int]): starting node as (row, col)
+                goal (tuple[int, int]): goal node as (row, col)
+
+            Returns:
+                list[tuple[int, int]] or None:
+                    A list of tuple nodes from start to goal if a path
+                    exists, otherwise, None
+            """
             # if already at the gaol, no need to search
             if start == goal:
                 return [start]
             # create a queue of nodes to check
             open_set = []
-            # use heapq library to check optimality
+            # use heapq library to check optimality and pick lowest cost node to explore next
             heapq.heappush(open_set, (man_dist(start, goal), 0, start, [start]))
             # add any already visited nodes to a set to avoid going through them again
             visited = set()
@@ -375,7 +420,7 @@ class BoardItem:
                     return path
                 # if we're still going, get the node row and column
                 r, c = current
-                # look at all possible neighbors
+                # look at all valid neighbors and add them to the heap in order of cost with the lowest cost options first
                 for nbr in neighbors(r, c, goal):
                     if nbr not in visited:
                         heapq.heappush(open_set, (g + 1 + man_dist(nbr, goal), g + 1, nbr, path + [nbr]))
@@ -414,16 +459,17 @@ class BoardItem:
         else:
             # check if a piece is being captured
             captured_piece = self.chess_board.piece_at(end_sq)
-            #  check for en passant capture
+            # check for en passant capture
             is_en_passant = False
+            # must be a pawn
             if piece.piece_type == chess.PAWN:
                 if abs(ec - sc) == 1 and captured_piece is None:
-                    # pawn moved diagonally but destination empty -> en passant
+                    # pawn moved diagonally but destination empty means en passant
                     is_en_passant = True
-                    captured_sq = chess.square(ec, sr)  # pawn captured is on the same rank as start
-                    captured_piece = self.chess_board.piece_at(captured_sq)
+                    captured_sq = chess.square(ec, sr) # pawn captured is on the same rank as start and the ending column for the capturing pawn
+                    captured_piece = self.chess_board.piece_at(captured_sq) # get the actual pawn from python chess
 
-            # if a piece was captured, move it to the next available capture space
+            # if regular capture, move the captured piece to the next available capture space
             if captured_piece:
                 if captured_piece.color == chess.WHITE:
                     caps = self.white_captures
@@ -491,7 +537,7 @@ class BoardItem:
     # path visualization
     def display_paths(self, path_seq):
         """
-        Print a node-grid visualization of a planned path sequence.
+        print a node-grid visualization of a planned path sequence
 
         'M' = normal movement
         'C' = capture handling
@@ -501,7 +547,7 @@ class BoardItem:
         'R' = castling rook path
 
         Args:
-            path_seq (list): path sequence returned from plan_path()
+            path_seq (list): path sequence from plan path function
 
         Returns:
             None
@@ -529,19 +575,19 @@ class BoardItem:
     @staticmethod
     def generate_gcode(path_seq, node_spacing=1.0):
         """
-        Convert a planned path sequence into G-code instructions.
+        convert a planned path sequence into gcode instructions
 
-        - Move to start of each segment with G0 rapid move
-        - Raise servo "servo_up"
-        - Follow path using linear moves including diagonals
-        - Lower servo "servo_down"
+        - move to start of each segment with G0 rapid move
+        - raise servo
+        - follow path using linear moves including diagonals
+        - lower servo
 
         Args:
-            path_seq (list): path sequence from plan_path()
+            path_seq (list): path sequence from plan path function
             node_spacing (float): scale factor converting grid units to real units if that should change on the real board
 
         Returns:
-            str: a multi-line g-code program
+            str: a multi-line gcode program
         """
         # storage for gcode instructions
         lines = []
@@ -571,8 +617,8 @@ class BoardItem:
     # board reset helper function
     def _direct_path(self, start_node, end_node):
         """
-        Compute a direct path from start_node to end_node search on node_grid.
-        Avoids obstacles (non-empty squares) and returns a list of node coordinates.
+        compute a direct path from start_node to end_node search on node_grid
+        avoids obstacles and returns a list of node coordinates
         
         Args:
             start_node (tuple[int,int]): starting node (row, col)
@@ -603,27 +649,23 @@ class BoardItem:
                         if self.node_grid[nr, nc] == '.' or (nr, nc) == end_node:
                             visited.add((nr, nc))
                             queue.append(((nr, nc), path + [(nr, nc)]))
-        return []  # if no path found
+        return [] # if no path found
     
     def reset_board_physical(self):
         """
-        Reset the board to the starting state.
+        reset the physical board to the starting state
 
-        Strategy:
-        1. Lock pieces already in correct starting squares.
-        2. Evict any wrong piece occupying a starting square.
-        3. Move remaining misplaced pieces into their starting squares.
-        4. Update temp_board and node_grid.
-        5. Return G-code for all moves.
+        Returns:
+            None
         """
-        import random
-        import numpy as np
-
+        # create a copy of the checkmate layout to reference
         temp_board = self.state_board.copy()
+        # placeholder for paths
         reset_paths = []
+        # placeholder for squares to not change
         locked_squares = set()
 
-        # --- Define starting positions, including extra nodes ---
+        # define all starting squares for each type of piece to know where each should reset
         starting_positions = {
             'R': [(8,2), (8,9), (2,0), (9,0)],
             'N': [(8,3), (8,8), (1,0), (8,0)],
@@ -640,10 +682,19 @@ class BoardItem:
             'p': [(2,c) for c in range(2,10)],
         }
 
-        # --- Helper: random free square (not a starting square) ---
+        # make a set version of starting_positions to reference for all of the starting positions without the piece names
         all_starting = {sq for v in starting_positions.values() for sq in v}
 
         def random_free_square():
+            """
+            select a random unoccupied and allowed square on the board
+            a square is free if it is unoccupied, not a starting position,
+            not a locked square, and not a promotion space
+
+            Returns:
+                tuple[int, int] or None: a randomly chosen free square as (row, col) or None if no free squares are available
+            """
+            # check all board squares and remove all invalid ones
             free = [
                 (r, c)
                 for r in range(self.state_rows)
@@ -653,85 +704,94 @@ class BoardItem:
                 and (r, c) not in all_starting
                 and c not in (0, 11)
             ]
+            # return a random free square from the list if there are any
             return random.choice(free) if free else None
 
-        # --- Phase 1: lock already-correct pieces ---
+        # lock all of the squares that are already correct
         for piece, valid_sqs in starting_positions.items():
+            # using numpy, get the location of all of the current piece type by checking where it matches in the temp board
             for pos in zip(*np.where(temp_board == piece)):
+                # if piece position is in the valid square list, lock that square 
                 if pos in valid_sqs:
                     locked_squares.add(pos)
 
-        # --- Phase 2: evict wrong pieces from starting squares ---
+        # randomly move all of the pieces that are in the incorrect starting position spaces
         for piece, valid_sqs in starting_positions.items():
+            # figure out which piece is in each starting square
             for sq in valid_sqs:
                 occupant = temp_board[sq]
+                # if the wrong piece is in the square, move it to a random free square
                 if occupant != '.' and occupant != piece:
                     free_sq = random_free_square()
+                    # skip failed searches to avoid errors
                     if free_sq is None:
-                        continue  # should be extremely rare
+                        continue  # should never happen but avoid errors, human can fix lol
 
+                    # convert the squares to node notation
                     start_node = (sq[0]*2, sq[1]*2)
                     end_node   = (free_sq[0]*2, free_sq[1]*2)
 
+                    # add the random move to the list of reset paths
                     reset_paths.append(self._direct_path(start_node, end_node))
 
+                    # update internal tracking
+                    # random square is now occupied by the piece that was moved
                     temp_board[free_sq] = occupant
+                    self.node_grid[end_node[0], end_node[1]] = occupant
+                    # the starting space has opened up
                     temp_board[sq] = '.'
                     self.node_grid[start_node[0], start_node[1]] = '.'
-                    self.node_grid[end_node[0], end_node[1]] = occupant
 
-        # --- Phase 3: place correct pieces into starting squares ---
+        # put correct pieces into starting spaces after all incorrect starting spaces have been opened up
         for piece, valid_sqs in starting_positions.items():
-            current_positions = [
-                pos for pos in zip(*np.where(temp_board == piece))
-                if pos not in locked_squares
-            ]
-
-            target_sqs = [
-                sq for sq in valid_sqs
-                if temp_board[sq] == '.'
-            ]
-
+            # like before, get locations for all pieces of a certain type by referencing the temp board
+            current_positions = []
+            for pos in zip(*np.where(temp_board == piece)):
+                # avoid moving locked squares
+                if pos not in locked_squares:
+                    # make a list of pieces to move
+                    current_positions.append(pos)
+            # get all of the currently empty starting squares
+            target_sqs = []
+            for sq in valid_sqs:
+                if temp_board[sq] == '.':
+                    target_sqs.append(sq)
+            # iterate through the pieces to move to the correct starting positions
             for piece_pos, target in zip(current_positions, target_sqs):
+                # move the piece from its current incorrect position
                 start_node = (piece_pos[0]*2, piece_pos[1]*2)
+                # to the correct game start square
                 end_node   = (target[0]*2, target[1]*2)
-
+                # find the path between the nodes and add it to the overall list of moves
                 reset_paths.append(self._direct_path(start_node, end_node))
 
+                # update internal tracking
+                # the correct starting square now contains the correct piece
                 temp_board[target] = piece
+                self.node_grid[end_node[0], end_node[1]] = piece
+                # the previous space is now empty
                 temp_board[piece_pos] = '.'
                 self.node_grid[start_node[0], start_node[1]] = '.'
-                self.node_grid[end_node[0], end_node[1]] = piece
-
+                # lock the square now that its correct to avoid moving it again
                 locked_squares.add(target)
 
-        # --- Generate G-code ---
+        # make the gcode to send to the arduino
         gcode = self.generate_gcode([("move", path) for path in reset_paths])
         return gcode
 
 
 class PremadeGameMode:
     """
-    Premade game mode that plays a fixed, pre-defined sequence of legal
-    chess moves.
-
-    This mode is intended for demonstrations, testing, and validation of the
-    physical gantry chess board. Each move is:
-    - Planned as a physical path
-    - Converted to G-code
-    - Executed on the hardware
-    - Applied to the internal python-chess board state
-
-    The game ends automatically after the final move in the predefined list,
-    allowing the normal game-over and board reset logic to run.
+    premade game mode that plays a fixed, predefined sequence of legal chess moves
+    FOR DEMOS
 
     Methods:
         play_next_move(send_gcode_line):
-            communicates pre-sequenced moves to the arduino for execution
+            communicate moves to the arduino
     """
     def __init__(self, board_item, arduino, pi, show_paths=True):
         """
-        Initializes the premade game mode.
+        initializes the premade game mode
 
         Args:
             board_item (BoardItem): the combined logical and physical chessboard controller responsible 
@@ -782,20 +842,18 @@ class PremadeGameMode:
 
     def play_next_move(self, send_gcode_line):
         """
-        Executes the next move in the predefined move list.
+        execute the next move in the predefined move list
 
         Args:
-            send_gcode_line (callable): function used to send a single line of
-                gcode to the gantry controller, expected signature:
-                send_gcode_line(line, arduino, pi, next_line)
+            send_gcode_line (callable): function used to send a single line of gcode to the gantry controller
 
         Returns:
-            bool: True if a move was executed successfully
-            False if no moves remain and the game is over
+            bool: True if a move was executed successfully or False if no moves remain and the game is over
         """
+        # check if the game is over
         if self.index >= len(self.moves):
-            return False  # game over
-
+            return False
+        # get the current move
         uci_move = self.moves[self.index]
 
         # plan the move path
@@ -817,4 +875,3 @@ class PremadeGameMode:
 
         self.index += 1
         return True
-

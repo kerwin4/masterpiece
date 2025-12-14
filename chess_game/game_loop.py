@@ -23,7 +23,7 @@ BAUD_RATE = 115200 # GRBL communication rate (MUST BE 115200)
 # PI GPIO DAEMON
 def start_pigpio_daemon():
     """
-    Starts the pigpio daemon if it's not already running.
+    starts the pigpio daemon if it's not already running
 
     Returns:
         None
@@ -40,7 +40,7 @@ def start_pigpio_daemon():
     
 def stop_pigpio_daemon():
     """
-    Stops the pigpio daemon if it's running.
+    stops the pigpio daemon if it's running
 
     Returns:
         None
@@ -60,17 +60,17 @@ def stop_pigpio_daemon():
 # USER INPUT GAME CONFIG
 def ask_int(prompt, min_val=1350, max_val=3190):
     """
-    Prompt the user to enter an integer within a specified range.
-    Repeats the prompt until a valid integer within the provided range is entered.
-    Primarily used for determining stockfish ELO.
+    prompt the user to enter an integer within a specified range
+    repeats the prompt until a valid integer within the provided range is entered
+    primarily used for determining stockfish elo
 
     Args:
         prompt (str): the message to display to the user
-        min_val (int): minimum valid value, defaults to 1350
-        max_val (int): maximum valid value, defaults to 3190
+        min_val (int): minimum valid value, defaults to 1350 for elo purposes
+        max_val (int): maximum valid value, defaults to 3190 for elo purposes
 
     Returns:
-        int: The integer entered by the user within the specified range
+        int: the integer entered by the user within the specified range
     """
     while True:
         val = input(prompt).strip() # get user input
@@ -82,15 +82,15 @@ def ask_int(prompt, min_val=1350, max_val=3190):
 
 def ask_choice(prompt, choices):
     """
-    Prompt the user to select a choice from a list.
-    Repeats the prompt until a valid choice from "choices" is entered regardless of letter case
+    prompt the user to select a choice from a list
+    repeats the prompt until a valid choice from "choices" is entered regardless of letter case
 
     Args:
         prompt (str): the message to display to the user
         choices (list[str]): list of valid choices
 
     Returns:
-        str: the choice selected by the user, returned in its original casing
+        str: the choice selected by the user in its original case
     """
     choices_lower = {c.lower(): c for c in choices} # make everything lowercase
     while True:
@@ -102,9 +102,8 @@ def ask_choice(prompt, choices):
 # SERVO COMMAND FUNCTIONS
 def servo_up(pi):
     """
-    Move the servo to the "up" position.
-    Sends the appropriate PWM signal to the configured GPIO pin and waits 0.4s
-    for motion to complete.
+    move the servo to the up position
+    sends the appropriate pwm signal to the configured gpio pin and waits 0.4s for motion to complete
 
     Args:
         pi (pigpio.pi): raspberry pi gpio controller for servo control
@@ -117,9 +116,8 @@ def servo_up(pi):
 
 def servo_down(pi):
     """
-    Move the servo to the "down" position.
-    Sends the appropriate PWM signal to the configured GPIO pin and waits 0.4s
-    for motion to complete.
+    move the servo to the down position
+    Sends the appropriate pwm signal to the configured gpio pin and waits 0.4s for motion to complete
 
     Args:
         pi (pigpio.pi): raspberry pi gpio controller for servo control
@@ -132,8 +130,7 @@ def servo_down(pi):
 
 def servo_neutral(pi):
     """
-    Stop sending PWM signals to the servo.
-    Sets the servo to neutral/off state.
+    stop sending pwm signals to the servo
 
     Args:
         pi (pigpio.pi): raspberry pi gpio controller for servo control
@@ -147,9 +144,9 @@ def servo_neutral(pi):
 # so this function only confirms that a line has been added to the queue
 def wait_for_ok(arduino):
     """
-    Wait for a response of 'ok' from the GRBL controller.
-    Continuously reads serial lines from the Arduino until 'ok' is received.
-    Any other responses are printed for informational purposes.
+    wait for a response of 'ok' from the grbl controller
+    continuously reads serial lines from the arduino until 'ok' is received
+    any other responses are printed for informational purposes
 
     Args:
         arduino (serial.Serial): serial connection to arduino/grbl for gantry control
@@ -171,7 +168,7 @@ def wait_for_ok(arduino):
 # we can guarantee the servo moves at the right time
 def wait_until_idle(arduino, timeout=60.0):
     """
-    Wait until the grbl controller reports that it is idle.
+    wait until the grbl controller reports that it is idle
 
     Args:
         arduino (serial.Serial): serial connection to arduino/grbl for gantry control
@@ -183,7 +180,7 @@ def wait_until_idle(arduino, timeout=60.0):
     start_time = time.time() # when the function is called, start a timer
     while True:
         arduino.reset_input_buffer()
-        arduino.write(b"?\n") # request GRBL status
+        arduino.write(b"?\n") # request grbl status
         time.sleep(0.1) # wait a moment for a resonse
 
         while arduino.in_waiting:
@@ -195,11 +192,10 @@ def wait_until_idle(arduino, timeout=60.0):
         if time.time() - start_time > timeout:
             raise TimeoutError("GRBL did not become idle in time")
 
-# send a single line of gcode from the pi to the arduino function
 def send_gcode_line(line, arduino, pi, next_line=None):
     """
-    Send a single line of gcode from the pi to the arduino.
-    If the next line is a servo command, wait for the gantry to become idle before moving on.
+    send a single line of gcode from the pi to the arduino
+    if the next line is a servo command, wait for the gantry to become idle before moving on
 
     Args:
         line (str): the line of gcode to send to grbl
@@ -214,7 +210,7 @@ def send_gcode_line(line, arduino, pi, next_line=None):
     if not line:
         return
 
-    # servo control functions
+    # servo control
     if line == "servo_up":
         wait_until_idle(arduino)
         servo_up(pi)
@@ -242,7 +238,7 @@ def send_gcode_line(line, arduino, pi, next_line=None):
 
 def run_game(pi, arduino):
     """
-    Run a full round of chess configured by user input
+    run a full round of chess configured by user input
 
     Args:
         pi (pigpio.pi): raspberry pi gpio controller for servo control
@@ -254,7 +250,7 @@ def run_game(pi, arduino):
     arduino.reset_input_buffer()
     board_item = BoardItem()
 
-    # choose game mode
+    # choose game mode from user input
     mode = ask_choice(
         "\nSelect mode:\n"
         "  1 = Human vs Computer\n"
@@ -265,7 +261,7 @@ def run_game(pi, arduino):
         ["1", "2", "3", "4"]
     )
 
-    # configuration flags
+    # configuration placeholders
     AUTO_PLAY = False
     HUMAN_PLAYS_WHITE = True
     HUMAN_VS_HUMAN = False
@@ -273,13 +269,8 @@ def run_game(pi, arduino):
     BLACK_SKILL = None
 
     # configure modes
-    if mode == "2":
-        AUTO_PLAY = True
-        HUMAN_PLAYS_WHITE = False
-        print("\nComputer vs Computer selected.")
-        WHITE_SKILL = ask_int("Enter White engine skill level (1350-3190): ")
-        BLACK_SKILL = ask_int("Enter Black engine skill level (1350-3190): ")
-    elif mode == "1":
+    # human vs copmuter
+    if mode == "1":
         print("\nHuman vs Computer selected.")
         color_choice = ask_choice("Do you want to play as White or Black? ", ["White", "Black"])
         HUMAN_PLAYS_WHITE = (color_choice == "White")
@@ -287,6 +278,14 @@ def run_game(pi, arduino):
             BLACK_SKILL = ask_int("Enter Computer (Black) skill level (1350-3190): ")
         else:
             WHITE_SKILL = ask_int("Enter Computer (White) skill level (1350-3190): ")
+    # computer vs computer
+    elif mode == "2":
+        AUTO_PLAY = True
+        HUMAN_PLAYS_WHITE = False
+        print("\nComputer vs Computer selected.")
+        WHITE_SKILL = ask_int("Enter White engine skill level (1350-3190): ")
+        BLACK_SKILL = ask_int("Enter Black engine skill level (1350-3190): ")
+    # preset game
     elif mode == "4":
         game_mode = PremadeGameMode(board_item, arduino, pi)
         turn = 1
@@ -298,12 +297,13 @@ def run_game(pi, arduino):
         wait_for_ok(arduino)
         arduino.write(b"G20 G90\n")
         wait_for_ok(arduino)
+        # execute the premade moves
         while game_mode.play_next_move(send_gcode_line):
             print(f"[{turn}] Deterministic move played")
             board_item.display_board()
             turn += 1
             time.sleep(TURN_DELAY)
-
+    # mode 3 is human vs human
     else:
         print("\nHuman vs Human selected.")
         HUMAN_VS_HUMAN = True
@@ -329,6 +329,7 @@ def run_game(pi, arduino):
     board_item.display_state()
 
     # set up chess engines if needed
+    # placeholders required for later logic
     white_engine = None
     black_engine = None
     if AUTO_PLAY or (not HUMAN_VS_HUMAN and not HUMAN_PLAYS_WHITE):
@@ -429,39 +430,41 @@ def run_game(pi, arduino):
     # board reset option
     resp = input("\nWould you like to reset the board to the starting position? (y/n): ").strip().lower()
     if resp == "y":
-        print("Resetting board...")
+        print("Resetting board")
         gcode = board_item.reset_board_physical()
         lines = gcode.splitlines()
         for i, line in enumerate(lines):
             next_line = lines[i + 1] if i + 1 < len(lines) else None
             send_gcode_line(line, arduino, pi, next_line)
+        print("Reset complete")
     else:
         print("Board will not be reset.")
 
 def init_hardware():
     """
-    Initialize all of the necessary processes to run a game on the board.
+    initialize all of the necessary processes to run a game on the board
 
     Returns:
         pi (pigpio.pi): raspberry pi gpio controller for servo control
         arduino (serial.Serial): serial connection to arduino/grbl for gantry control
     """
-
+    # start the daemon required for pigpio and give time to configure
     start_pigpio_daemon()
     time.sleep(1)
+    # start pigpio
     pi = pigpio.pi()
     if not pi.connected:
         raise RuntimeError("pigpiod broken")
-
+    # connect to arduino over serial and give config time
     arduino = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
     time.sleep(2)
     arduino.reset_input_buffer()
-
+    # return objects so they can be passed to other functions
     return pi, arduino
 
 def shutdown_hardware(pi, arduino):
     """
-    Close all of the processes that were initialized at the beginning of the game
+    close all of the processes that were initialized at the beginning of the game
 
     Args:
         pi (pigpio.pi): raspberry pi gpio controller for servo control
@@ -470,8 +473,11 @@ def shutdown_hardware(pi, arduino):
     Returns:
         None
     """
-
+    # close serial
     arduino.close()
+    # stop sending servo commands
     servo_neutral(pi)
+    # stop pigpio
     pi.stop()
+    # close the pigpio daemon
     stop_pigpio_daemon()
