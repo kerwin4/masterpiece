@@ -11,6 +11,8 @@ After you complete the setup steps, navigate to main.py and run to play on the b
 
 [RealVNC Viewer](https://www.realvnc.com/en/connect/download/viewer/?lai_vid=53JjVNAVjI6PJ&lai_sr=0-4&lai_sl=l&lai_p=1&lai_na=611310) - Remote access to Raspberry Pi
 
+[Arduino IDE](https://www.arduino.cc/en/software/#ide) - Arduino programming interface
+
 [GRBL](https://github.com/grbl/grbl) - Arduino gantry control
 
 [Raspberry Pi Imager](https://www.raspberrypi.com/software/) - Used to flash the OS to the Raspberry Pi
@@ -31,13 +33,24 @@ After you complete the setup steps, navigate to main.py and run to play on the b
 
 ## Setup
 
-Add GRBL setup instructions
+First, you will configure the Arduino with GRBL to control the gantry. Visit [the GRBL github page](https://github.com/grbl/grbl) and download the repository as a zip file.
+Unzip the file and navigate to the config.h file in the grbl directory. You will edit 4 lines in this file to set core-xy and homing logic for the gantry control.
 
-First, set up the Raspberry Pi by downloading the Raspberry Pi OS (64-bit) onto a micro-SD card, insert it 
+Line 76: ```#define HOMING_CYCLE_0 (1<<X_AXIS)```
+
+Line 77: ```#define HOMING_CYCLE_1 (1<<Y_AXIS)```
+
+Line 112: Uncomment
+
+Line 153: Uncomment
+
+Once this is complete, save the file and rezip **ONLY** the grbl directory and open Arduino IDE. Navigate through *Sketch > Include Library > Add .ZIP Library* and select your re-zipped grbl folder. GRBL will now be a library in your IDE. Navigate through *File > Examples* and scroll down to the name of your GRBL library. Select the ```grblUpload``` example file, connect your Arduino, and upload the program!
+
+For the second step, set up the Raspberry Pi by downloading the Raspberry Pi OS (64-bit) onto a micro-SD card, insert it 
 into the slot on the Pi, and power it on. Allow 2-3 minutes for the Pi to boot
 
 Next, [download RealVNC Viewer](https://www.realvnc.com/en/connect/download/viewer/?lai_vid=53JjVNAVjI6PJ&lai_sr=0-4&lai_sl=l&lai_p=1&lai_na=611310) to access the Pi remotely with it's IP address.
-From the device you are using to access the pi, you can use ```ping [YOUR PI NAME].local``` to discover it's IP. Or, if you have access to the router, use the router's page to find the IP address.
+From the device you are using to access the pi, you can use ```ping [YOUR PI NAME].local``` to discover it's IP as long as you are on the same network. Or, if you have access to the router, use the router's page to find the IP address.
 Input the IP address to RealVNC Viewer and you will have remote access to the Pi.
 
 Once you have access to the Pi, install [Universal G-Code Sender](https://winder.github.io/ugs_website/download/) and [Stockfish](https://stockfishchess.org/download/) using the ARM64 
@@ -77,8 +90,8 @@ Additionally, you will need the pigpio tools which can not be installed via pip.
 This will ensure you have the pigpio daemon installed which is necessary for servo control.
 
 From this point on, you have installed all of the dependencies and will now configure the gantry.
-Launch Universal G-code Sender and connect to the Arduino on the correct port.
-You will configure important gantry settings with the following commands. Unfortunately you will
+Launch Universal G-code Sender and connect to the Arduino on the correct port (visible in the dropdown).
+You will configure important gantry settings with the following commands. Unfortunately, you will
 need to send each line one at a time using the UGS terminal.
 
 ```$21 = 1``` (hard limits, bool)
