@@ -50,7 +50,9 @@ Then, clone this repository to the Pi from the terminal with the command,
 Navigate into the repo, and create a python virtual environment with the following commands
 
 ```sudo apt update```
+
 ```sudo apt install python3-venv```
+
 ```python3 -m venv .[YOUR VIRTUAL ENVIRONMENT NAME HERE]```
 
 This will allow use to use pip to install the necessary python packages. When installing packages
@@ -69,6 +71,7 @@ With the venv activated, run the following command to install the necessary pyth
 Additionally, you will need the pigpio tools which can not be installed via pip. Instead, use apt to install the package.
 
 ```sudo apt update```
+
 ```sudo apt install python3-pigpio pigpio-tools```
 
 This will ensure you have the pigpio daemon installed which is necessary for servo control.
@@ -79,19 +82,33 @@ You will configure important gantry settings with the following commands. Unfort
 need to send each line one at a time using the UGS terminal.
 
 ```$21 = 1``` (hard limits, bool)
+
 ```$22 = 1``` (homing cycle, bool)
+
 ```$23 = 3``` (homing dir invert mask:00000011)
+
 ```$24 = 25.000``` (homing feed, mm/min)
+
 ```$25 = 1500.000``` (homing seek, mm/min)
+
 ```$26 = 250``` (homing debounce, msec)
+
 ```$27 = 3.000``` (homing pull-off, mm)
+
 ```$100 = 40.323``` (x, step/mm)
+
 ```$101 = 40.323``` (y, step/mm)
+
 ```$110 = 5000.000``` (x max rate, mm/min)
+
 ```$111 = 5000.000``` (y max rate, mm/min)
+
 ```$120 = 100.000``` (x accel, mm/sec^2)
+
 ```$121 = 100.000``` (y accel, mm/sec^2)
+
 ```$130 = 500.000``` (x max travel, mm)
+
 ```$131 = 600.000``` (y max travel, mm)
 
 You are now ready to run a game! Return to the root of the repo, activate your venv,
