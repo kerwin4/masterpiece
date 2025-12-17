@@ -17,6 +17,8 @@ TURN_DELAY = 0 # added delay to prevent runaway memory if desired
 SHOW_PATHS = True # display planned paths if True
 
 SERVO_PIN = 17  # gpio pin for the servo
+WHITE_LED_PIN = 27 # gpio pin for white turn led
+BLACK_LED_PIN = 22 # gpio pin for black turn led
 SERIAL_PORT = "/dev/ttyACM0" # port for serial cable to arduino
 BAUD_RATE = 115200 # GRBL communication rate (MUST BE 115200)
 
@@ -140,6 +142,19 @@ def servo_neutral(pi):
     """
     pi.set_servo_pulsewidth(SERVO_PIN, 0)
 
+# LED COMMAND FUNCTIONS
+def white_led_on(pi):
+    pi.write(WHITE_LED_PIN, 1)
+
+def white_led_off(pi):
+    pi.write(WHITE_LED_PIN, 0)
+
+def black_led_on(pi):
+    pi.write(BLACK_LED_PIN, 1)
+
+def black_led_off(pi):
+    pi.write(BLACK_LED_PIN, 0)
+
 # GRBL queues moves if it receives them faster than it's executing them,
 # so this function only confirms that a line has been added to the queue
 def wait_for_ok(arduino):
@@ -249,6 +264,8 @@ def run_game(pi, arduino):
     """
     arduino.reset_input_buffer()
     board_item = BoardItem()
+    black_led_off(pi)
+    white_led_off(pi)
 
     # choose game mode from user input
     mode = ask_choice(
@@ -299,6 +316,12 @@ def run_game(pi, arduino):
         wait_for_ok(arduino)
         # execute the premade moves
         while game_mode.play_next_move(send_gcode_line):
+            if turn%2 == 0:
+                white_led_off(pi)
+                black_led_on(pi)
+            else:
+                white_led_on(pi)
+                black_led_off(pi)
             print(f"[{turn}] Deterministic move played")
             board_item.display_board()
             turn += 1
@@ -315,6 +338,9 @@ def run_game(pi, arduino):
     print(" Human plays white?", HUMAN_PLAYS_WHITE)
     print(" White computer skill:", WHITE_SKILL)
     print(" Black computer skill:", BLACK_SKILL)
+
+    black_led_off(pi)
+    white_led_off(pi)
 
     # start gantry setup
     servo_down(pi)
@@ -349,6 +375,12 @@ def run_game(pi, arduino):
     # main game loop
     turn = 1
     while not board_item.chess_board.is_game_over():
+        if turn%2 == 0:
+            white_led_off(pi)
+            black_led_on(pi)
+        else:
+            white_led_on(pi)
+            black_led_off(pi)
         color = "White" if board_item.chess_board.turn == chess.WHITE else "Black"
         print(f"\n[{turn}] {color}'s turn")
 
@@ -420,6 +452,8 @@ def run_game(pi, arduino):
         time.sleep(TURN_DELAY)
 
     # game over
+    white_led_off(pi)
+    black_led_off(pi)
     print("\nGame over")
     print("Result:", board_item.chess_board.result())
     if white_engine:
