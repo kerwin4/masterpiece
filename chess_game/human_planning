@@ -1,0 +1,96 @@
+function()
+
+start_square = None
+end_square = None
+promotion = None
+
+while(start square and end square are unassigned)
+
+get 10x12 matrix using some function that iterates through all of the i/o expanders in the correct order and shoves all the readings into the matrix correctly
+
+store this matrix as current matrix
+
+current_matrix = get_matrix()
+
+compare this matrix to the previous matrix by subtracting the current matrix from the previous one
+
+delta = previous_matrix - current_matrix
+
+any square that hasn't changed will be a 0
+any square that has gained a piece will be -1 (0 -> 1)
+any square that has lost a piece will be +1 (1 -> 0)
+
+identify the indices in the matrix of the square that switches if any
+switched_indices = location of the non-zero matrix entry
+if more than one square switched skip the current loop
+
+if the indices are within the 8x8 game board, convert to the square name and get the piece at that square
+
+if not start_square and delta(switched_indices) = 1:
+
+        if these indices are in a promotion column (0 for white 11 for black):
+            get the name of the piece according to the current promotion list for that color
+            make it lowercase
+            promotion = that lowercase letter
+
+        if not promotion: # only assign the start square if we are not dealing with a promotion
+            convert indices to square name on 8x8 game board
+            if the square is an opponent's piece the move is a capture
+            end_square = square name
+            capture = True
+            if the square is the player's piece
+            start_square = square name
+
+# end a normal move
+if start_square and not end_square and not promotion and delta(switched_indices) = -1:
+
+        if the indices are a game square
+        convert to the square name
+        if the moving piece is a king and it moves more than 1 index
+            castling = true
+        end_square = square name
+        if not castling:
+             break
+
+if promotion and not start_square and delta(switched_indices) = -1: #the promotion piece has been placed in the end column
+    convert switched indices to a square location on the 8x8 game board
+    end_square = square name
+    # still have to wait for the pawn to move 
+
+if promotion and end_square and delta(switched_indices) = 1: #the pawn being promoted has been lifted
+    convert switched indices to board square Name
+    start_square = square Name
+    # still have to wait for this pawn to be placed back down
+
+if promotion and start_square and end_square and delta(switched_indices) = -1: #promotion pawn has been placed in the promotion column
+    break # promotion move over
+
+if capture and end_square and delta(switched_indices) = -1: # captured piece has been placed into capture column
+    # somehow have to wait for capturing piece to move while still understanding that this is the captured piece being placed in a capture space
+    # new tracker perhaps with captured
+    captured = True
+
+if capture and end_square and captured and delta(switched_indices) = 1: # capturing piece has been lifted
+    # convert indices to square name on 8x8 game board (a1-h8)
+    #check which piece is there
+    if capturing_piece is a pawn and is on the same row as the captured piece's starting position:
+        en_passant = True
+    start_square = square Name
+    capturing = True
+
+if capture and end_square and captured and capturing and delta(switched_indices) = -1: # capturing piece has been placed
+    if en_passant
+        check what square the switched indices correlate to
+        end_square = square name
+    break # capture move over
+
+if castling and delta(switched_indices) = 1: # rook has been lifted
+    rook = True
+
+if castling and rook and delta(switched_indices) = -1: # rook has been placed
+    break
+
+
+#AFTER BROKEN OUT OF WHILE LOOP
+move_uci = join start_square+end_square+promotion # if promotion is None that's fine
+return move_uci
