@@ -314,9 +314,11 @@ def run_game(pi, arduino):
         wait_for_ok(arduino)
         arduino.write(b"G20 G90\n")
         wait_for_ok(arduino)
+        white_led_on(pi)
+        black_led_off(pi)
         # execute the premade moves
         while game_mode.play_next_move(send_gcode_line):
-            if turn%2 == 0:
+            if turn%2 != 0:
                 white_led_off(pi)
                 black_led_on(pi)
             else:
@@ -359,7 +361,7 @@ def run_game(pi, arduino):
     white_engine = None
     black_engine = None
     if AUTO_PLAY or (not HUMAN_VS_HUMAN and not HUMAN_PLAYS_WHITE):
-        if AUTO_PLAY or not HUMAN_PLAYS_WHITE:
+        if AUTO_PLAY or HUMAN_PLAYS_WHITE == True:
             black_engine = chess.engine.SimpleEngine.popen_uci(STOCKFISH_PATH)
             black_engine.configure({
                 "UCI_LimitStrength": True,

@@ -19,23 +19,13 @@ def interpret_human_move(board_item, get_matrix):
     end_square = None
     promotion = None
 
-    capture = False
-    captured = False
-    capturing = False
-    castling = False
-    rook_phase = False
-    en_passant = False
-
-    captured_piece_square = None
+    mode = "idle"
+    phase = 0
 
     while True:
         current = get_matrix()
         delta = previous - current
         previous = current
-
-        # SANITY CHECK: no more than 48 pieces
-        if current_matrix.sum() > 48:
-            raise ValueError(f"Too many pieces detected on board: {current_matrix.sum()}")
 
         switched = list(zip(*np.where(delta != 0)))
         if len(switched) != 1:
@@ -44,83 +34,96 @@ def interpret_human_move(board_item, get_matrix):
         r, c = switched[0]
         d = delta[r, c]   # +1 lifted, -1 placed
 
-        # ---------------- PROMOTION PIECE PICKUP ----------------
-        if not promotion and d == +1 and is_promo_col(c):
+        # ======================================================
+        # PROMOTION (promo piece ? pawn)
+        # ======================================================
+        if mode == "idle" and d == +1 and is_promo_col(c):
             promo_list = (
                 board_item.white_promos if c == 0 else board_item.black_promos
             )
             promotion = promo_list[r].lower()
+            mode = "promo"
+            phase = 1
             continue
 
-        # ---------------- NORMAL LIFT ----------------
-        if d == +1 and is_game_square(r, c):
-            sq = state_to_uci(r, c)
-            piece = board_item.chess_board.piece_at(chess.parse_square(sq))
-
-            if piece is None:
+        if mode == "promo":
+            # pawn lift
+            if phase == 1 and d == +1 and is_game_square(r, c):
+                start_square = state_to_uci(r, c)
+                phase = 2
                 continue
 
-            if not start_square:
-                start_square = sq
-
-                if piece.piece_type == chess.KING:
-                    castling = True
-
-            elif capture and not capturing:
-                start_square = sq
-                capturing = True
-
-                # en passant detection
-                if piece.piece_type == chess.PAWN:
-                    sr = chess.square_rank(chess.parse_square(start_square))
-                    cr = chess.square_rank(chess.parse_square(captured_piece_square))
-                    if sr == cr:
-                        en_passant = True
-
-            continue
-
-        # ---------------- NORMAL PLACE ----------------
-        if d == -1 and is_game_square(r, c):
-            sq = state_to_uci(r, c)
-
-            if not end_square:
-                end_square = sq
-
-                if start_square:
-                    s = chess.parse_square(start_square)
-                    e = chess.parse_square(end_square)
-                    if abs(chess.square_file(e) - chess.square_file(s)) > 1:
-                        castling = True
-
-                if not castling and not promotion and not capture:
-                    break
-
-            elif promotion and start_square:
+            # pawn place (onto promo start square)
+            if phase == 2 and d == -1 and is_game_square(r, c):
+                end_square = state_to_uci(r, c)
                 break
 
             continue
 
-        # ---------------- CAPTURE HANDLING ----------------
-        if d == -1 and is_capture_square(r, c, board_item):
-            captured = True
+        # ======================================================
+        # CAPTURE (normal OR en passant) � captured first
+        # ======================================================
+        if mode == "idle" and d == +1 and is_capture_square(r, c, board_item):
+            mode = "capture"
+            phase = 1
             continue
 
-        if capture and captured and d == +1 and is_game_square(r, c):
-            start_square = state_to_uci(r, c)
-            capturing = True
-            continue
+        if mode == "capture":
+            # capturer lift
+            if phase == 1 and d == +1 and is_game_square(r, c):
+                start_square = state_to_uci(r, c)
+                phase = 2
+                continue
 
-        if capture and capturing and d == -1 and is_game_square(r, c):
-            if en_passant:
+            # capturer place
+            if phase == 2 and d == -1 and is_game_square(r, c):
                 end_square = state_to_uci(r, c)
-            break
+                break
 
-        # ---------------- CASTLING ROOK ----------------
-        if castling and d == +1:
-            rook_phase = True
             continue
 
-        if castling and rook_phase and d == -1:
-            break
+        # ======================================================
+        # CASTLING (king ? rook)
+        # ======================================================
+        if mode == "idle" and d == +1 and is_game_square(r, c):
+            start_square = state_to_uci(r, c)
+
+            piece = board_item.chess_board.piece_at(
+                chess.parse_square(start_square)
+            )
+
+            if piece and piece.piece_type == chess.KING:
+                mode = "castle"
+                phase = 1
+            else:
+                mode = "normal"
+
+            continue
+
+        if mode == "castle":
+            # king place
+            if phase == 1 and d == -1 and is_game_square(r, c):
+                end_square = state_to_uci(r, c)
+                phase = 2
+                continue
+
+            # rook lift
+            if phase == 2 and d == +1 and is_game_square(r, c):
+                phase = 3
+                continue
+
+            # rook place
+            if phase == 3 and d == -1 and is_game_square(r, c):
+                break
+
+            continue
+
+        # ======================================================
+        # NORMAL MOVE
+        # ======================================================
+        if mode == "normal":
+            if d == -1 and is_game_square(r, c):
+                end_square = state_to_uci(r, c)
+                break
 
     return start_square + end_square + (promotion or "")
