@@ -360,19 +360,21 @@ def run_game(pi, arduino):
     # placeholders required for later logic
     white_engine = None
     black_engine = None
-    if AUTO_PLAY or (not HUMAN_VS_HUMAN and not HUMAN_PLAYS_WHITE):
+    if AUTO_PLAY or HUMAN_VS_HUMAN == False:
         if AUTO_PLAY or HUMAN_PLAYS_WHITE == True:
             black_engine = chess.engine.SimpleEngine.popen_uci(STOCKFISH_PATH)
             black_engine.configure({
                 "UCI_LimitStrength": True,
                 "UCI_Elo": BLACK_SKILL
             })
+            print("black engine opened")
         if AUTO_PLAY or HUMAN_PLAYS_WHITE == False:
             white_engine = chess.engine.SimpleEngine.popen_uci(STOCKFISH_PATH)
             white_engine.configure({
                 "UCI_LimitStrength": True,
                 "UCI_Elo": WHITE_SKILL
             })
+            print("white engine opened")
 
     # main game loop
     turn = 1
