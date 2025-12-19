@@ -12,7 +12,7 @@ from board_item import BoardItem, PremadeGameMode
 
 # GENERAL CONFIGURATION
 STOCKFISH_PATH = "/home/chess/stockfish/stockfish-android-armv8" # path to stockfish engine, for pi: /home/chess/stockfish/stockfish-android-armv8
-ENGINE_TIME = 0.2 # amount of time stockfish has to make a decision
+ENGINE_TIME = 1 # amount of time stockfish has to make a decision
 TURN_DELAY = 0 # added delay to prevent runaway memory if desired
 SHOW_PATHS = True # display planned paths if True
 
