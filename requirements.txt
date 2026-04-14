@@ -2,3 +2,4 @@ chess~=1.11.2
 numpy~=2.3.3
 pyserial~=3.5
 pigpio~=1.78
+vosk~=0.3.45

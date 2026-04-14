@@ -31,6 +31,8 @@ After you complete the setup steps, navigate to main.py and run to play on the b
 
 [PySerial](https://pypi.org/project/pyserial/) - Serial communication between Pi and Arduino
 
+[Vosk](https://alphacephei.com/vosk/models) - Offline Speech-to-text model for human movement input
+
 ## Setup
 
 First, you will configure the Arduino with GRBL to control the gantry. Visit [the GRBL github page](https://github.com/grbl/grbl) and download the repository as a zip file.
@@ -53,12 +55,13 @@ Next, [download RealVNC Viewer](https://www.realvnc.com/en/connect/download/view
 From the device you are using to access the pi, you can use ```ping [YOUR PI NAME].local``` to discover it's IP as long as you are on the same network. Or, if you have access to the router, use the router's page to find the IP address.
 Input the IP address to RealVNC Viewer and you will have remote access to the Pi.
 
-Once you have access to the Pi, install [Universal G-Code Sender](https://winder.github.io/ugs_website/download/) and [Stockfish](https://stockfishchess.org/download/) using the ARM64 
-compatible versions. You can place these in any directory, but you will need to remember the file paths.
+Also, [download Vosk's](https://alphacephei.com/vosk/models) vosk-model-small-en-us-0.15 model (first option). Make sure that this is placed in the root of the project.
+
+Once you have access to the Pi, install [Universal G-Code Sender](https://winder.github.io/ugs_website/download/) and [Stockfish](https://stockfishchess.org/download/) using the ARM64 compatible versions. You can place these in any directory, but you will need to remember the file paths.
 
 Then, clone this repository to the Pi from the terminal with the command,
 
-```git clone https://github.com/kerwin4/chess_test.git```
+```git clone https://github.com/kerwin4/masterpiece.git```
 
 Navigate into the repo, and create a python virtual environment with the following commands
 
