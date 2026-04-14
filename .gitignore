@@ -131,3 +131,5 @@ dmypy.json
 .vscode/
 
 stockfish-windows-x86-64-avx2.exe
+vosk-model-small-en-us-0.15
+vosk-model-en-us-0.22

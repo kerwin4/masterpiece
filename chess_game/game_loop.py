@@ -181,7 +181,7 @@ def wait_for_ok(arduino):
 # by the arduino, we need to move the servo at the right moments.
 # By waiting until a sequence of moves is completed and the gantry is idle,
 # we can guarantee the servo moves at the right time
-def wait_until_idle(arduino, timeout=60.0):
+def wait_until_idle(arduino, timeout=120.0):
     """
     wait until the grbl controller reports that it is idle
 
