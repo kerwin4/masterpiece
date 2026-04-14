@@ -12,7 +12,7 @@ from board_item import BoardItem, PremadeGameMode
 
 # GENERAL CONFIGURATION
 STOCKFISH_PATH = "/home/chess/stockfish/stockfish-android-armv8" # path to stockfish engine, for pi: /home/chess/stockfish/stockfish-android-armv8
-ENGINE_TIME = 0.2 # amount of time stockfish has to make a decision
+ENGINE_TIME = 1 # amount of time stockfish has to make a decision
 TURN_DELAY = 0 # added delay to prevent runaway memory if desired
 SHOW_PATHS = True # display planned paths if True
 
@@ -360,19 +360,21 @@ def run_game(pi, arduino):
     # placeholders required for later logic
     white_engine = None
     black_engine = None
-    if AUTO_PLAY or (not HUMAN_VS_HUMAN and not HUMAN_PLAYS_WHITE):
+    if AUTO_PLAY or HUMAN_VS_HUMAN == False:
         if AUTO_PLAY or HUMAN_PLAYS_WHITE == True:
             black_engine = chess.engine.SimpleEngine.popen_uci(STOCKFISH_PATH)
             black_engine.configure({
                 "UCI_LimitStrength": True,
                 "UCI_Elo": BLACK_SKILL
             })
+            print("black engine opened")
         if AUTO_PLAY or HUMAN_PLAYS_WHITE == False:
             white_engine = chess.engine.SimpleEngine.popen_uci(STOCKFISH_PATH)
             white_engine.configure({
                 "UCI_LimitStrength": True,
                 "UCI_Elo": WHITE_SKILL
             })
+            print("white engine opened")
 
     # main game loop
     turn = 1
