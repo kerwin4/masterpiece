@@ -9,9 +9,11 @@ import serial
 import pigpio
 from subprocess import Popen, PIPE
 from board_item import BoardItem, PremadeGameMode
+from vosk import Model
 
 # GENERAL CONFIGURATION
 STOCKFISH_PATH = "/home/chess/stockfish/stockfish-android-armv8" # path to stockfish engine, for pi: /home/chess/stockfish/stockfish-android-armv8
+MODEL_PATH = "/home/chess/vosk-model-small-en-us-0.15"
 ENGINE_TIME = 1 # amount of time stockfish has to make a decision
 TURN_DELAY = 0 # added delay to prevent runaway memory if desired
 SHOW_PATHS = True # display planned paths if True
@@ -21,6 +23,8 @@ WHITE_LED_PIN = 27 # gpio pin for white turn led
 BLACK_LED_PIN = 22 # gpio pin for black turn led
 SERIAL_PORT = "/dev/ttyACM0" # port for serial cable to arduino
 BAUD_RATE = 115200 # GRBL communication rate (MUST BE 115200)
+
+speech_model = Model(MODEL_PATH)
 
 # PI GPIO DAEMON
 def start_pigpio_daemon():
@@ -394,7 +398,7 @@ def run_game(pi, arduino):
         if HUMAN_VS_HUMAN:
             # both players are human
             while True:
-                move_uci = input(f"Enter your move for {color} (e.g., e2e4): ").strip()
+                move_uci = board_item.listen_for_valid_move(board_item.chess_board, speech_model)
                 if len(move_uci) not in (4, 5):
                     print("Invalid format. Use e2e4 or e7e8q.")
                     continue
@@ -419,7 +423,7 @@ def run_game(pi, arduino):
             # human move
             while True:
                 # get input
-                move_uci = input(f"Enter your move for {color} (e.g., e2e4): ").strip()
+                move_uci = board_item.listen_for_valid_move(board_item.chess_board, speech_model)
                 # check if the move is in the correct format
                 if len(move_uci) not in (4, 5):
                     print("Invalid format. Use e2e4 or e7e8q.")

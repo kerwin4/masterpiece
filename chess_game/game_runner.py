@@ -8,14 +8,14 @@ import time
 from vosk import Model
 
 # GAME CONFIGURATION
-STOCKFISH_PATH = "stockfish-windows-x86-64-avx2.exe"  # stockfish path for pi: /home/stockfish/stockfish/stockfish-android-armv8 for windows: stockfish-windows-x86-64-avx2.exe
-MODEL_PATH = "vosk-model-small-en-us-0.15"
+STOCKFISH_PATH = "/home/chess/stockfish/stockfish-android-armv8"  # stockfish path for pi: /home/stockfish/stockfish/stockfish-android-armv8 for windows: stockfish-windows-x86-64-avx2.exe
+MODEL_PATH = "/home/chess/vosk-model-small-en-us-0.15"
 ENGINE_TIME = 0.5 # seconds for stockfish to choose
 TURN_DELAY = 0 # delay between computer turns
 WHITE_SKILL = 20 # stockfish skill white
 BLACK_SKILL = 0 # stockfish skill black
 SHOW_PATHS = False # show/hide path planning
-AUTO_PLAY = False # if true, play computer vs computer
+AUTO_PLAY = True # if true, play computer vs computer
 
 # BOARD SETUP
 board_item = BoardItem() # create board item
