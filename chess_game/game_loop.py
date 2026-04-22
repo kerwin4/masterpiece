@@ -348,16 +348,16 @@ def run_game(pi, arduino):
         wait_for_ok(arduino)
         arduino.write(b"G20 G90\n")
         wait_for_ok(arduino)
-        white_led_on(pi)
-        black_led_off(pi)
+        white_blinker.start()
+        black_blinker.stop()
         # execute the premade moves
         while game_mode.play_next_move(send_gcode_line):
-            if turn%2 != 0:
-                white_led_off(pi)
-                black_led_on(pi)
+            if turn%2 == 0:
+                white_blinker.stop()
+                black_blinker.start()
             else:
-                white_led_on(pi)
-                black_led_off(pi)
+                white_blinker.start()
+                black_blinker.stop()
             print(f"[{turn}] Deterministic move played")
             board_item.display_board()
             turn += 1
