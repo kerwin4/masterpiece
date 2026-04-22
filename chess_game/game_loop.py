@@ -4,6 +4,7 @@ Full game control for physical gantry chess board.
 
 import chess
 import chess.engine
+import threading
 import time
 import serial
 import pigpio
@@ -25,6 +26,33 @@ SERIAL_PORT = "/dev/ttyACM0" # port for serial cable to arduino
 BAUD_RATE = 115200 # GRBL communication rate (MUST BE 115200)
 
 speech_model = Model(MODEL_PATH)
+
+class LEDBlinker:
+    def __init__(self, pi, pin, interval=0.5):
+        self.pi = pi
+        self.pin = pin
+        self.interval = interval
+        self._running = False
+        self._thread = None
+
+    def _blink(self):
+        while self._running:
+            self.pi.write(self.pin, 1)
+            time.sleep(self.interval)
+            self.pi.write(self.pin, 0)
+            time.sleep(self.interval)
+
+    def start(self):
+        if not self._running:
+            self._running = True
+            self._thread = threading.Thread(target=self._blink, daemon=True)
+            self._thread.start()
+
+    def stop(self):
+        self._running = False
+        if self._thread:
+            self._thread.join()
+        self.pi.write(self.pin, 0)  # ensure off
 
 # PI GPIO DAEMON
 def start_pigpio_daemon():
@@ -270,6 +298,8 @@ def run_game(pi, arduino):
     board_item = BoardItem()
     black_led_off(pi)
     white_led_off(pi)
+    white_blinker = LEDBlinker(pi, WHITE_LED_PIN, 0.3)
+    black_blinker = LEDBlinker(pi, BLACK_LED_PIN, 0.3)
 
     # choose game mode from user input
     mode = ask_choice(
@@ -384,11 +414,11 @@ def run_game(pi, arduino):
     turn = 1
     while not board_item.chess_board.is_game_over():
         if turn%2 == 0:
-            white_led_off(pi)
-            black_led_on(pi)
+            black_blinker.start()
+            white_blinker.stop()
         else:
-            white_led_on(pi)
-            black_led_off(pi)
+            white_blinker.start()
+            black_blinker.stop()
         color = "White" if board_item.chess_board.turn == chess.WHITE else "Black"
         print(f"\n[{turn}] {color}'s turn")
 
